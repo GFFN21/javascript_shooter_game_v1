@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roguelike Shooter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <div id="hud">
+                <div id="hearts-container">
+                    <!-- Hearts will be injected here -->
+                </div>
+                <div id="stats">
+                    <div id="money-display">Gold: 0</div>
+                    <div id="level-info">Level: <span id="level-display">1</span></div>
+                    <div id="score-info">Score: <span id="score-display">0</span></div>
+                </div>
+
+                <div id="weapon-hud">
+                    <!-- Injected via JS: 3 Slots -->
+                </div>
+
+                <div id="game-over-screen" class="hidden">
+                    <h1>GAME OVER</h1>
+                    <p>Score: <span id="final-score">0</span></p>
+                    <button id="restart-btn">Restart</button>
+                </div>
+                <div id="inventory-screen" class="hidden">
+                    <h2>DASHBOARD</h2>
+                    <div id="inventory-container">
+                        <div id="equipment-col" class="inv-col">
+                            <h3>EQUIPMENT</h3>
+                            <div id="equipment-grid" class="grid-2x2"></div>
+                        </div>
+
+                        <div id="inventory-col" class="inv-col">
+                            <h3>BACKPACK</h3>
+                            <div id="inventory-grid" class="grid-4x2">
+                                <!-- Slots injected by JS -->
+                            </div>
+                        </div>
+
+                        <div id="weapons-col" class="inv-col">
+                            <h3>WEAPONS</h3>
+                            <div id="weapons-grid" class="grid-3x1"></div>
+                        </div>
+                    </div>
+                    <p class="hint">Press 'I' to Close</p>
+                </div>
+
+                <div id="skills-screen" class="hidden">
+                    <h2>SKILLS</h2>
+                    <div id="skills-container">
+                        <div class="skill-tree-placeholder">
+                            <p>Skill Tree Coming Soon!</p>
+                            <!-- Placeholder slots -->
+                            <div class="skill-slot">A</div>
+                            <div class="skill-slot">B</div>
+                            <div class="skill-slot">C</div>
+                        </div>
+                    </div>
+                    <p class="hint">Press 'P' to Close</p>
+                </div>
+            </div>
+        </div>
+        <script type="module" src="src/main.js?v=12345"></script>
+</body>
+
+</html>

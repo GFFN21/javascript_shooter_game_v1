@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Tileset Inspector 128x128</title>
+    <style>
+        body {
+            background: #222;
+            color: #fff;
+            font-family: sans-serif;
+        }
+
+        .container {
+            position: relative;
+            display: inline-block;
+            transform: scale(1);
+            transform-origin: top left;
+            margin: 20px;
+        }
+
+        img {
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .cell {
+            position: absolute;
+            width: 128px;
+            height: 128px;
+            box-sizing: border-box;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        .cell span {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Tileset Inspector (128x128 Grid)</h1>
+    <div class="container">
+        <img src="mayan_tileset.png" id="tileset">
+        <div class="overlay" id="grid"></div>
+    </div>
+    <script>
+        const img = document.getElementById('tileset');
+        const grid = document.getElementById('grid');
+        const TILE_SIZE = 128;
+
+        img.onload = () => {
+            const cols = Math.floor(img.width / TILE_SIZE);
+            const rows = Math.floor(img.height / TILE_SIZE);
+
+            grid.style.width = img.width + 'px';
+            grid.style.height = img.height + 'px';
+
+            let count = 0;
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.style.left = (x * TILE_SIZE) + 'px';
+                    cell.style.top = (y * TILE_SIZE) + 'px';
+                    cell.innerHTML = `<span>${count}</span>`;
+                    grid.appendChild(cell);
+                    count++;
+                }
+            }
+        };
+    </script>
+</body>
+
+</html>
