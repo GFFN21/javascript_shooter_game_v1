@@ -1,18 +1,19 @@
 import Entity from './Entity.js';
 import Bullet from './Bullet.js';
+import { CONFIG } from '../Config.js';
 
 export default class Enemy extends Entity {
-    constructor(game, x, y) {
+    constructor(game, x, y, stats = CONFIG.ENEMIES.WALKER) {
         super(game, x, y);
-        this.speed = 85;
+        this.speed = stats.speed;
         this.radius = 15;
-        this.hp = 3;
+        this.hp = stats.hp;
 
         this.shootCooldown = 2.0;
         this.fireRate = 1.5;
         this.mass = 2; // Medium
-        this.dropValue = 10;
-        this.color = '#ff0000'; // Default Red
+        this.dropValue = stats.dropValue;
+        this.color = stats.color;
     }
 
     update(dt) {

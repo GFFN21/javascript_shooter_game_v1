@@ -1,21 +1,23 @@
 import Entity from './Entity.js';
 import Bullet from './Bullet.js';
+import { CONFIG } from '../Config.js';
 
 export default class Player extends Entity {
     constructor(game, x, y) {
         super(game, x, y);
-        this.speed = 200;
+        const stats = CONFIG.PLAYER;
+        this.speed = stats.SPEED;
         this.radius = 15;
-        this.hp = 3;
-        this.maxHp = 3;
+        this.hp = stats.HP;
+        this.maxHp = stats.HP;
         this.shootTimer = 0; // Fixed from shootCooldown
         this.fireRate = 0.15;
         this.mass = 5; // Heavy
 
         // Dash Properties
-        this.dashSpeed = 800;
-        this.dashDuration = 0.2;
-        this.dashCooldown = 1.0;
+        this.dashSpeed = stats.DASH_SPEED;
+        this.dashDuration = stats.DASH_DURATION;
+        this.dashCooldown = stats.DASH_COOLDOWN;
         this.dashTimer = 0;
         this.dashCooldownTimer = 0;
         this.isDashing = false;
@@ -36,7 +38,7 @@ export default class Player extends Entity {
 
     takeDamage(amount) {
         super.takeDamage(amount);
-        this.flashTimer = 1.0; // 1 second invulnerability
+        this.flashTimer = CONFIG.PLAYER.IFRAME_DURATION;
         if (this.hp <= 0) {
             this.game.gameOver();
         }

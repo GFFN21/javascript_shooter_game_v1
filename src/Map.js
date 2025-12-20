@@ -16,6 +16,7 @@ export default class Map {
         this.tileset.onload = () => {
             this.tilesetLoaded = true;
             console.log("Tileset Loaded. Dim:", this.tileset.naturalWidth, this.tileset.naturalHeight);
+            this.preRenderMap();
         };
         this.tileset.onerror = () => {
             console.error("Tileset Failed to Load");
@@ -66,73 +67,52 @@ export default class Map {
 
     // ... (Generate methods unchanged) ...
 
-    renderFloor(ctx) {
+    preRenderMap() {
         if (!this.tilesetLoaded) return;
 
-        const sw = this.game.width;
-        const sh = this.game.height;
-        const zoom = 1.5;
-        const visW = sw / zoom;
-        const visH = sh / zoom;
-        const left = this.game.camera.x - visW / 2;
-        const top = this.game.camera.y - visH / 2;
-        const startCol = Math.floor(left / this.tileSize);
-        const endCol = Math.floor((left + visW) / this.tileSize) + 1;
-        const startRow = Math.floor(top / this.tileSize);
-        const endRow = Math.floor((top + visH) / this.tileSize) + 1;
+        // Initialize Canvases
+        if (!this.floorCanvas) {
+            this.floorCanvas = document.createElement('canvas');
+            this.floorCanvas.width = this.width * this.tileSize;
+            this.floorCanvas.height = this.height * this.tileSize;
+            this.floorCtx = this.floorCanvas.getContext('2d');
 
-        for (let y = startRow; y <= endRow; y++) {
-            if (y < 0 || y >= this.height) continue;
-            for (let x = startCol; x <= endCol; x++) {
-                if (x < 0 || x >= this.width) continue;
+            this.wallCanvas = document.createElement('canvas');
+            this.wallCanvas.width = this.width * this.tileSize;
+            this.wallCanvas.height = this.height * this.tileSize;
+            this.wallCtx = this.wallCanvas.getContext('2d');
+        }
 
+        const fCtx = this.floorCtx;
+        const wCtx = this.wallCtx;
+
+        // Clear
+        fCtx.clearRect(0, 0, this.floorCanvas.width, this.floorCanvas.height);
+        wCtx.clearRect(0, 0, this.wallCanvas.width, this.wallCanvas.height);
+
+        // Loop ALL tiles
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const px = x * this.tileSize;
+                const py = y * this.tileSize;
+
+                // Floor
                 if (this.tiles[y][x] === 0) {
-                    // Pick floor tile based on position to be deterministic
                     const index = (x + y * 57) % this.ids.floors.length;
                     const id = this.ids.floors[index];
                     const src = this.getTileSrc(id);
-
-                    ctx.drawImage(
-                        this.tileset,
-                        src.x, src.y, 128, 128,
-                        x * this.tileSize, y * this.tileSize, this.tileSize, this.tileSize
-                    );
+                    fCtx.drawImage(this.tileset, src.x, src.y, 128, 128, px, py, this.tileSize, this.tileSize);
                 }
-            }
-        }
-    }
 
-    renderWalls(ctx) {
-        if (!this.tilesetLoaded) return;
-
-        const sw = this.game.width;
-        const sh = this.game.height;
-        const zoom = 1.5;
-        const visW = sw / zoom;
-        const visH = sh / zoom;
-        const left = this.game.camera.x - visW / 2;
-        const top = this.game.camera.y - visH / 2;
-
-        const startCol = Math.floor(left / this.tileSize);
-        const endCol = Math.floor((left + visW) / this.tileSize) + 1;
-        const startRow = Math.floor(top / this.tileSize);
-        const endRow = Math.floor((top + visH) / this.tileSize) + 1;
-
-        for (let y = startRow; y <= endRow; y++) {
-            if (y < 0 || y >= this.height) continue;
-            for (let x = startCol; x <= endCol; x++) {
-                if (x < 0 || x >= this.width) continue;
-
+                // Walls
                 if (this.tiles[y][x] === 1) {
-                    // Logic: Determine Type based on Floor Neighbors
+                    // Wall Logic
                     const fLeft = this.isFloor(x - 1, y);
                     const fRight = this.isFloor(x + 1, y);
                     const fDown = this.isFloor(x, y + 1);
-                    const fUp = this.isFloor(x, y - 1); // For potential future use or more complex wall types
+                    const fUp = this.isFloor(x, y - 1);
 
-                    // Skip hidden walls (not touching any floor)
                     if (!fLeft && !fRight && !fDown && !fUp) {
-                        // Check diagonals for corner filling?
                         const fDL = this.isFloor(x - 1, y + 1);
                         const fDR = this.isFloor(x + 1, y + 1);
                         const fUL = this.isFloor(x - 1, y - 1);
@@ -140,53 +120,71 @@ export default class Map {
                         if (!fDL && !fDR && !fUL && !fUR) continue;
                     }
 
-                    let candidates = this.ids.top; // Default to generic top wall
-                    let currentFrontFaceId = this.frontFaceId; // Default front face
+                    let candidates = this.ids.top;
+                    let currentFrontFaceId = this.frontFaceId;
 
                     if (fDown) {
-                        if (fRight) {
-                            candidates = this.ids.cornerTL; // Floor is South AND East -> Wall is TL of room
-                        } else if (fLeft) {
-                            candidates = this.ids.cornerTR; // Floor is South AND West -> Wall is TR of room
-                        } else {
-                            candidates = this.ids.top; // Floor is South -> Top Wall (already default)
-                        }
+                        if (fRight) candidates = this.ids.cornerTL;
+                        else if (fLeft) candidates = this.ids.cornerTR;
+                        else candidates = this.ids.top;
                     } else if (fRight) {
-                        candidates = this.ids.left; // Floor is East -> Left Wall
-                        currentFrontFaceId = 9; // Use ID 9 for left wall front face
+                        candidates = this.ids.left;
+                        currentFrontFaceId = 9;
                     } else if (fLeft) {
-                        candidates = this.ids.right; // Floor is West -> Right Wall
-                        currentFrontFaceId = 8; // Use ID 8 for right wall front face
+                        candidates = this.ids.right;
+                        currentFrontFaceId = 8;
                     }
 
-                    // Deterministic Random selection from candidates
                     const index = (x + y * 13) % candidates.length;
                     const id = candidates[index];
                     const src = this.getTileSrc(id);
-
-                    const px = x * this.tileSize;
-                    const py = y * this.tileSize;
-
-                    // Front Face (Vertical strip)
                     const srcFront = this.getTileSrc(currentFrontFaceId);
 
-                    ctx.drawImage(
-                        this.tileset,
-                        srcFront.x, srcFront.y, 128, 128,
-                        px, py + this.tileSize - 20, this.tileSize, 20
-                    );
-
-                    // Top Face
-                    ctx.drawImage(
-                        this.tileset,
-                        src.x, src.y, 128, 128,
-                        px, py - 20, this.tileSize, this.tileSize
-                    );
+                    // Draw to Wall Canvas
+                    wCtx.drawImage(this.tileset, srcFront.x, srcFront.y, 128, 128, px, py + this.tileSize - 20, this.tileSize, 20);
+                    wCtx.drawImage(this.tileset, src.x, src.y, 128, 128, px, py - 20, this.tileSize, this.tileSize);
                 }
             }
         }
+        console.log("Static Cache Regenerated");
+    }
 
+    renderFloor(ctx) {
+        if (!this.floorCanvas) {
+            // Lazy init logic or fallback
+            // Currently relies on loading. 
+            return;
+        }
+        this.renderLayer(ctx, this.floorCanvas);
+    }
 
+    renderWalls(ctx) {
+        if (!this.wallCanvas) return;
+        this.renderLayer(ctx, this.wallCanvas);
+    }
+
+    renderLayer(ctx, canvas) {
+        // Viewport Culling
+        const tl = this.game.camera.screenToWorld(0, 0);
+        const br = this.game.camera.screenToWorld(this.game.width, this.game.height);
+
+        const margin = this.tileSize * 2;
+        let sx = tl.x - margin;
+        let sy = tl.y - margin;
+        let w = (br.x - tl.x) + margin * 2;
+        let h = (br.y - tl.y) + margin * 2;
+
+        // Clamp to Canvas Bounds
+        if (sx < 0) { w += sx; sx = 0; }
+        if (sy < 0) { h += sy; sy = 0; }
+        if (sx + w > canvas.width) w = canvas.width - sx;
+        if (sy + h > canvas.height) h = canvas.height - sy;
+
+        if (w <= 0 || h <= 0) return;
+
+        // Draw Cached Slice
+        // Since ctx is transformed to World Space, dx/dy match sx/sy (World Coords)
+        ctx.drawImage(canvas, sx, sy, w, h, sx, sy, w, h);
     }
 
     generate() {
@@ -279,6 +277,7 @@ export default class Map {
         }
 
         console.log("Door Spots Found:", this.doorSpots.length);
+        if (this.tilesetLoaded) this.preRenderMap();
     }
 
     createRoom(r) {
