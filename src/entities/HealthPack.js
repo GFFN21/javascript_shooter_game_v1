@@ -11,9 +11,15 @@ export default class HealthPack extends Entity {
     update(dt) {
         // Simple floating animation
         this.floatOffset += dt * 5;
-    }
-
-    render(ctx) {
+        onCollision(other) {
+            if (other === this.game.world.player && !this.markedForDeletion) {
+                if (other.hp < other.maxHp) {
+                    other.hp = Math.min(other.maxHp, other.hp + this.healAmount);
+                    this.markedForDeletion = true;
+                    this.game.world.spawnParticles(this.x, this.y, '#00ff00', 10);
+                }
+            }
+        }
         const drawY = this.y + Math.sin(this.floatOffset) * 3;
 
         // Draw Cross

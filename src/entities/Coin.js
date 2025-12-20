@@ -33,9 +33,13 @@ export default class Coin extends Entity {
                 this.baseY = this.y; // Update base for bobbing
             }
         }
-    }
-
-    render(ctx) {
+        onCollision(other) {
+            if (other === this.game.world.player && !this.markedForDeletion) {
+                other.money += this.value;
+                this.game.world.spawnParticles(this.x, this.y, '#FFD700', 5);
+                this.markedForDeletion = true;
+            }
+        }
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = this.color;

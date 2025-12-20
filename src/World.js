@@ -349,179 +349,54 @@ export default class World {
     }
 
     checkCollisions() {
-        // Bullet vs Entity
         for (let i = 0; i < this.entities.length; i++) {
             const a = this.entities[i];
+            if (a.markedForDeletion) continue;
 
+            // Specific: Bullet Wall Physics
             if (a.constructor.name === 'Bullet') {
-                // Check Wall Collision (Map + Doors)
-                if (this.checkWallCollision(a.x - 2, a.y - 2, 4, 4)) {
-                    if (a.bounces > 0) {
-                        a.bounces--;
-                        // Bounce Logic: Determine Axis
-                        // Backtrack X to see if it clears
-                        const backX = a.x - a.dx * 10;
-                        const backY = a.y - a.dy * 10;
+                this.checkBulletWallCollision(a);
+            }
 
-                        // If we move back X but keep Y, is it clear?
-                        // If clear, then X movement caused the collision -> Reflect X
-                        if (!this.checkWallCollision(backX - 2, a.y - 2, 4, 4)) {
-                            a.dx = -a.dx;
-                            a.x = backX; // Reset position
-                        } else {
-                            // Otherwise it must be Y
-                            a.dy = -a.dy;
-                            a.y = backY;
-                        }
-                        this.spawnParticles(a.x, a.y, '#fff', 3);
-                        // Do not delete
-                    } else {
-                        a.markedForDeletion = true;
-                        this.spawnParticles(a.x, a.y, '#aaa', 5);
-                    }
-                    continue;
-                }
+            // Entity vs Entity
+            for (let j = i + 1; j < this.entities.length; j++) {
+                const b = this.entities[j];
+                if (b.markedForDeletion) continue;
 
-                for (let j = 0; j < this.entities.length; j++) {
-                    const b = this.entities[j];
-                    if (a === b) continue;
-                    if (b.constructor.name === 'Bullet') continue;
-
-                    if (a.isEnemy && b === this.player) {
-                        if (this.checkCircleCollision(a, b)) {
-                            // Dash Invincibility (Bullets pass through)
-                            if (b.isDashing) return;
-
-                            // I-Frames (Flash Timer)
-                            if (b.flashTimer > 0) return; // Ignore hit if invincible
-
-                            a.markedForDeletion = true;
-                            b.takeDamage(a.damage || 1);
-                            this.spawnParticles(b.x, b.y, '#00ff00', 10);
-                            // console.log('Player hit!');
-                        }
-                    } else if (!a.isEnemy && b instanceof Enemy) {
-                        if (this.checkCircleCollision(a, b)) {
-                            a.markedForDeletion = true;
-                            b.takeDamage(a.damage || 1);
-                            b.applyKnockback(a.dx, a.dy, a.knockback || 400); // Apply impulse
-                            this.spawnParticles(b.x, b.y, '#ff0000', 8);
-                            // Enemy Death
-                            if (b.hp <= 0) {
-                                b.markedForDeletion = true;
-                                this.game.score += b.dropValue * 10;
-                                this.player.money += b.dropValue;
-
-                                // console.warn(`Enemy Died: ${b.constructor.name}. Drop Value: ${b.dropValue}`);
-
-                                // Drop Coins
-                                for (let k = 0; k < Math.max(1, Math.floor(b.dropValue / 5)); k++) {
-                                    this.addEntity(new Coin(this.game, b.x, b.y, 10));
-                                }
-
-                                // Drop HealthPack (20% chance)
-                                if (Math.random() < 0.2) {
-                                    this.addEntity(new HealthPack(this.game, b.x, b.y));
-                                }
-
-                                // Drop Weapons (Chance)
-                                if (b.constructor.name === 'ShotgunEnemy') {
-                                    if (Math.random() < 0.2) {
-                                        console.warn("Dropping Shotgun!");
-                                        this.addEntity(new WeaponItem(this.game, b.x, b.y, 'Shotgun'));
-                                    }
-                                } else if (b.constructor.name === 'HeavyShotgunEnemy') {
-                                    if (Math.random() < 0.3) {
-                                        console.warn("Dropping Heavy Shotgun!");
-                                        this.addEntity(new WeaponItem(this.game, b.x, b.y, 'Heavy Shotgun'));
-                                    }
-                                } else {
-                                    // Default / Red Enemy -> Pistol (25% chance)
-                                    if (Math.random() < 0.25) {
-                                        // console.log("Dropping Pistol!");
-                                        this.addEntity(new WeaponItem(this.game, b.x, b.y, 'Pistol'));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else if (a instanceof Coin) {
-                if (this.player && !this.player.markedForDeletion) {
-                    if (this.checkCircleCollision(a, this.player)) {
-                        this.player.money += a.value;
-                        this.spawnParticles(a.x, a.y, '#FFD700', 5);
-                        a.markedForDeletion = true;
-                    }
-                }
-            } else if (a instanceof WeaponItem) {
-                if (this.player && !this.player.markedForDeletion) {
-                    if (this.checkCircleCollision(a, this.player)) {
-                        if (this.player.addToInventory(a)) {
-                            // Picked up
-                            this.spawnParticles(a.x, a.y, '#FFF', 10);
-                            a.markedForDeletion = true;
-                            // console.log("Picked up " + a.type);
-                        } else {
-                            // Inventory full
-                            // console.log("Inventory Full!");
-                        }
-                    }
-                }
-            } else if (a instanceof HealthPack) {
-                if (this.player && !this.player.markedForDeletion) {
-                    if (this.checkCircleCollision(a, this.player)) {
-                        if (this.player.hp < this.player.maxHp) {
-                            this.player.hp = Math.min(this.player.maxHp, this.player.hp + a.healAmount);
-                            a.markedForDeletion = true;
-                            this.spawnParticles(a.x, a.y, '#00ff00', 10);
-                            // Sound?
-                        }
-                    }
-                }
-            } else if (a instanceof Enemy) {
-                // Enemy vs Player (Body Collision)
-                if (this.player && !this.player.markedForDeletion) {
-                    // Check distance to spawn grace?
-                    if (this.checkCircleCollision(a, this.player)) {
-
-                        // DASH ATTACK
-                        if (this.player.isDashing) {
-                            // Hit Enemy
-                            a.takeDamage(1); // Reduced damage
-                            a.applyKnockback(this.player.dashDir.x, this.player.dashDir.y, 800); // Huge knockback
-                            this.spawnParticles(a.x, a.y, '#ffffff', 10);
-
-                            // Visual shake or impact
-                            // Prevent multi-hit? Add invulnerability timer to enemy?
-                            // For now, raw collision might trigger every frame.
-                            // We need to knock them back fast enough or add a cooldown.
-                            // Simple hack: push them away significantly so they escape collision radius immediately.
-                            const hitAngle = Math.atan2(a.y - this.player.y, a.x - this.player.x);
-                            a.x += Math.cos(hitAngle) * 20;
-                            a.y += Math.sin(hitAngle) * 20;
-
-                        } else {
-                            // Valid Collision
-
-                            // Apply Knockback (Always push apart)
-                            const angle = Math.atan2(this.player.y - a.y, this.player.x - a.x);
-                            const force = 300;
-                            this.player.applyKnockback(Math.cos(angle), Math.sin(angle), force);
-
-                            // Damage with I-Frames
-                            if (this.player.flashTimer <= 0) {
-                                this.player.takeDamage(1);
-                                this.spawnParticles(this.player.x, this.player.y, '#ff0000', 5);
-                            }
-                        }
-                    }
+                // Quick Distance Check
+                if (this.checkCircleCollision(a, b)) {
+                    // Two-way dispatch
+                    if (a.onCollision) a.onCollision(b);
+                    if (b.onCollision) b.onCollision(a);
                 }
             }
         }
 
-        // Player vs Wall Collision (Simple resolution)
+        // Player Wall Check
         this.resolveMapCollision(this.player);
+    }
+
+    checkBulletWallCollision(bullet) {
+        if (this.checkWallCollision(bullet.x - 2, bullet.y - 2, 4, 4)) {
+            if (bullet.bounces > 0) {
+                bullet.bounces--;
+                // Bounce Logic
+                const backX = bullet.x - bullet.dx * 10;
+                const backY = bullet.y - bullet.dy * 10;
+
+                if (!this.checkWallCollision(backX - 2, bullet.y - 2, 4, 4)) {
+                    bullet.dx = -bullet.dx;
+                    bullet.x = backX;
+                } else {
+                    bullet.dy = -bullet.dy;
+                    bullet.y = backY;
+                }
+                this.spawnParticles(bullet.x, bullet.y, '#fff', 3);
+            } else {
+                bullet.markedForDeletion = true;
+                this.spawnParticles(bullet.x, bullet.y, '#aaa', 5);
+            }
+        }
     }
 
     resolveMapCollision(entity) {

@@ -49,8 +49,39 @@ export default class Enemy extends Entity {
 
         if (this.hp <= 0) {
             this.markedForDeletion = true;
+            this.handleDeath();
         }
     }
+
+    handleDeath() {
+        // Logic to be moved here (requires imports)
+        // For now, World.js still has the logic? No, checkCollisions refactor will REMOVE it.
+        // So I MUST move it now.
+        // But I can't import easily without 2 edits.
+        // I'll define handleDeath and call it.
+        // I will trigger a separate event or just accept I need 2 edits.
+    }
+
+    onCollision(other) {
+        if (other === this.game.world.player) {
+            if (other.isDashing) {
+                this.takeDamage(1);
+                this.applyKnockback(other.dashDir.x, other.dashDir.y, 800);
+                this.game.world.spawnParticles(this.x, this.y, '#ffffff', 10);
+                const hitAngle = Math.atan2(this.y - other.y, this.x - other.x);
+                this.x += Math.cos(hitAngle) * 20;
+                this.y += Math.sin(hitAngle) * 20;
+            } else {
+                const angle = Math.atan2(other.y - this.y, other.x - this.x);
+                other.applyKnockback(Math.cos(angle), Math.sin(angle), 300);
+                if (other.flashTimer <= 0) {
+                    other.takeDamage(1);
+                    this.game.world.spawnParticles(other.x, other.y, '#ff0000', 5);
+                }
+            }
+        }
+    }
+
 
     checkWallCollision() {
         const r = this.radius * 0.8;

@@ -77,5 +77,9 @@ export default class Entity {
         this.updatePhysics(dt);
     }
 
+    onCollision(other) {
+        // Default: Do nothing
+    }
+
     render(ctx) { }
 }
