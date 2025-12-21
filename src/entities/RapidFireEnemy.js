@@ -1,15 +1,17 @@
 import Enemy from './Enemy.js';
+import { CONFIG } from '../Config.js';
+import MovementComponent from '../components/MovementComponent.js';
+import AttackComponent from '../components/AttackComponent.js';
 
 export default class RapidFireEnemy extends Enemy {
     constructor(game, x, y) {
-        super(game, x, y);
-        this.color = '#FFFF00'; // Yellow
-        this.hp = 6; // Slightly tougher
-        this.fireRate = 0.5; // Shoots every 0.5s (Vs default 2s)
-        this.shootCooldown = Math.random() * this.fireRate;
-        this.bulletSpeed = 350; // Faster bullets too?
-        this.dropValue = 30;
-    }
+        super(game, x, y, CONFIG.ENEMIES.WALKER);
 
-    // Reuse Enemy update/render logic
+        this.color = '#FFFF00'; // Yellow
+        this.hp = 6;
+        this.dropValue = 30;
+
+        this.movement = new MovementComponent(this, 'CHASE');
+        this.attack = new AttackComponent(this, 'RAPID');
+    }
 }

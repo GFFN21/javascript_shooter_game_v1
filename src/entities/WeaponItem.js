@@ -62,14 +62,18 @@ export default class WeaponItem extends Entity {
     update(dt) {
         this.bobOffset += 3 * dt;
         this.y = this.baseY + Math.sin(this.bobOffset) * 3;
-        onCollision(other) {
-            if (other === this.game.world.player && !this.markedForDeletion) {
-                if (other.addToInventory(this)) {
-                    this.game.world.spawnParticles(this.x, this.y, '#FFF', 10);
-                    this.markedForDeletion = true;
-                }
+    }
+
+    onCollision(other) {
+        if (other === this.game.world.player && !this.markedForDeletion) {
+            if (other.addToInventory(this)) {
+                this.game.world.spawnParticles(this.x, this.y, '#FFF', 10);
+                this.markedForDeletion = true;
             }
         }
+    }
+
+    render(ctx) {
         // Draw Gun Sprite (Simple Rectangle for now)
         ctx.save();
         ctx.translate(this.x, this.y);

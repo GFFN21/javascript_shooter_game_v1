@@ -43,17 +43,21 @@ export default class Bullet extends Entity {
             this.markedForDeletion = true;
         }
     }
+    render(ctx) {
+        ctx.fillStyle = this.isEnemy ? '#ff4d4d' : (this.color || '#ffff00');
+
+        if (this.isMelee) {
             // Draw Slash Trace
             ctx.beginPath();
             ctx.moveTo(this.x, this.y);
             ctx.lineTo(this.x - this.dx * 30, this.y - this.dy * 30);
-ctx.strokeStyle = '#fff';
-ctx.lineWidth = 3;
-ctx.stroke();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
         }
 
-ctx.beginPath();
-ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
     }
 }

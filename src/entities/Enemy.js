@@ -1,6 +1,12 @@
 import Entity from './Entity.js';
 import Bullet from './Bullet.js';
+
 import { CONFIG } from '../Config.js';
+import Coin from './Coin.js';
+import HealthPack from './HealthPack.js';
+import WeaponItem from './WeaponItem.js';
+import MovementComponent from '../components/MovementComponent.js';
+import AttackComponent from '../components/AttackComponent.js';
 
 export default class Enemy extends Entity {
     constructor(game, x, y, stats = CONFIG.ENEMIES.WALKER) {
@@ -8,44 +14,18 @@ export default class Enemy extends Entity {
         this.speed = stats.speed;
         this.radius = 15;
         this.hp = stats.hp;
-
-        this.shootCooldown = 2.0;
-        this.fireRate = 1.5;
-        this.mass = 2; // Medium
+        // this.mass = 2; // In Entity
         this.dropValue = stats.dropValue;
         this.color = stats.color;
+
+        this.movement = new MovementComponent(this, 'CHASE');
+        this.attack = new AttackComponent(this, 'PISTOL');
     }
 
     update(dt) {
         super.update(dt);
-        if (!this.game.world.player) return;
-
-        const target = this.game.world.player;
-        const dx = target.x - this.x;
-        const dy = target.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist > 0) {
-            const moveX = (dx / dist) * this.speed * dt;
-            const moveY = (dy / dist) * this.speed * dt;
-
-            this.x += moveX;
-            if (this.checkWallCollision()) {
-                this.x -= moveX;
-            }
-
-            this.y += moveY;
-            if (this.checkWallCollision()) {
-                this.y -= moveY;
-            }
-        }
-
-        // Shooting
-        this.shootCooldown -= dt;
-        if (this.shootCooldown <= 0 && dist < 400) { // Range check
-            this.shoot(target);
-            this.shootCooldown = this.fireRate;
-        }
+        if (this.movement) this.movement.update(dt);
+        if (this.attack) this.attack.update(dt);
 
         if (this.hp <= 0) {
             this.markedForDeletion = true;
@@ -54,12 +34,31 @@ export default class Enemy extends Entity {
     }
 
     handleDeath() {
-        // Logic to be moved here (requires imports)
-        // For now, World.js still has the logic? No, checkCollisions refactor will REMOVE it.
-        // So I MUST move it now.
-        // But I can't import easily without 2 edits.
-        // I'll define handleDeath and call it.
-        // I will trigger a separate event or just accept I need 2 edits.
+        // Score & Money
+        this.game.score += this.dropValue * 10;
+        if (this.game.world.player) this.game.world.player.money += this.dropValue;
+
+        // Drop Coins
+        const coinCount = Math.max(1, Math.floor(this.dropValue / 5));
+        for (let k = 0; k < coinCount; k++) {
+            this.game.world.addEntity(new Coin(this.game, this.x, this.y, 10));
+        }
+
+        // Drop HealthPack
+        if (Math.random() < CONFIG.DROPS.CHANCE_HEALTH) {
+            this.game.world.addEntity(new HealthPack(this.game, this.x, this.y));
+        }
+
+        // Drop Weapons
+        const type = this.constructor.name;
+        if (type === 'ShotgunEnemy') {
+            if (Math.random() < 0.2) this.game.world.addEntity(new WeaponItem(this.game, this.x, this.y, 'Shotgun'));
+        } else if (type === 'HeavyShotgunEnemy') {
+            if (Math.random() < 0.3) this.game.world.addEntity(new WeaponItem(this.game, this.x, this.y, 'Heavy Shotgun'));
+        } else {
+            // Default chance for Pistol
+            if (Math.random() < 0.25) this.game.world.addEntity(new WeaponItem(this.game, this.x, this.y, 'Pistol'));
+        }
     }
 
     onCollision(other) {
@@ -83,31 +82,7 @@ export default class Enemy extends Entity {
     }
 
 
-    checkWallCollision() {
-        const r = this.radius * 0.8;
-        return this.game.world.checkWallCollision(
-            this.x - r,
-            this.y - r,
-            r * 2,
-            r * 2
-        );
-    }
 
-    shoot(target) {
-        const angle = Math.atan2(target.y - this.y, target.x - this.x);
-        const speed = 300;
-
-        const bullet = new Bullet(
-            this.game,
-            this.x + Math.cos(angle) * 20,
-            this.y + Math.sin(angle) * 20,
-            Math.cos(angle),
-            Math.sin(angle),
-            speed,
-            true // isEnemy
-        );
-        this.game.world.addEntity(bullet);
-    }
 
     render(ctx) {
         if (this.flashTimer > 0) {

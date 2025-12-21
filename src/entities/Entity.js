@@ -81,5 +81,16 @@ export default class Entity {
         // Default: Do nothing
     }
 
+    checkWallCollision() {
+        if (!this.game || !this.game.world) return false;
+        const r = this.radius * 0.8;
+        return this.game.world.checkWallCollision(
+            this.x - r,
+            this.y - r,
+            r * 2,
+            r * 2
+        );
+    }
+
     render(ctx) { }
 }

@@ -34,6 +34,23 @@ export default class Player extends Entity {
         this.currentWeaponIndex = 0;
 
         this.money = 0;
+
+        // Sprite
+        this.sprite = new Image();
+        this.sprite.src = 'src/player_spritesheet_v2.png';
+
+        // Animation State
+        this.frameWidth = 64;
+        this.frameHeight = 64;
+        this.cols = 8;
+        this.rows = 16;
+
+        this.frameX = 0;
+        this.frameY = 0;
+        this.fps = 12; // Smoother
+        this.frameTimer = 0;
+        this.facing = 0; // 0:S, 1:SE, 2:E, 3:NE, 4:N, 5:NW, 6:W, 7:SW
+        this.state = 'idle'; // idle, run
     }
 
     takeDamage(amount) {
@@ -90,6 +107,40 @@ export default class Player extends Entity {
         // Shooting (Disabled while dashing? Or allowed? Let's allow it for style)
         if (this.game.input.mouse.down && this.shootTimer <= 0) {
             this.shoot();
+        }
+
+        this.updateAnimation(dt);
+    }
+
+    updateAnimation(dt) {
+        // Face Mouse (8-way)
+        const worldPos = this.game.camera.screenToWorld(this.game.input.mouse.x, this.game.input.mouse.y);
+        const dx = worldPos.x - this.x;
+        const dy = worldPos.y - this.y;
+        const angle = Math.atan2(dy, dx);
+
+        // Convert Angle (Radians) to 0-7 index (S, SE, E, NE, N, NW, W, SW)
+        const deg = angle * (180 / Math.PI);
+        const sector = Math.round(deg / 45);
+
+        const map = {
+            2: 0, 1: 1, 0: 2, [-1]: 3, [-2]: 4, [-3]: 5, 4: 6, [-4]: 6, 3: 7
+        };
+        this.facing = map[sector] !== undefined ? map[sector] : 0;
+
+        // State Determination
+        const isMoving = (this.game.input.isDown('KeyW') || this.game.input.isDown('KeyS') ||
+            this.game.input.isDown('KeyA') || this.game.input.isDown('KeyD'));
+
+        this.state = isMoving ? 'run' : 'idle';
+
+        // Animate
+        const maxFrames = this.state === 'run' ? 8 : 4;
+
+        this.frameTimer += dt;
+        if (this.frameTimer > 1 / this.fps) {
+            this.frameTimer = 0;
+            this.frameX = (this.frameX + 1) % maxFrames;
         }
     }
 
@@ -316,26 +367,35 @@ export default class Player extends Entity {
     }
 
     render(ctx) {
-        if (this.flashTimer > 0) {
-            ctx.fillStyle = '#ffffff';
-        } else {
-            ctx.fillStyle = '#00ff00';
-        }
+        if (this.flashTimer > 0) ctx.globalAlpha = 0.5;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.ellipse(this.x, this.y + 20, 12, 6, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Direction indicator (mouse)
-        const worldPos = this.game.camera.screenToWorld(this.game.input.mouse.x, this.game.input.mouse.y);
-        const mx = worldPos.x;
-        const my = worldPos.y;
-        const angle = Math.atan2(my - this.y, mx - this.x);
+        ctx.save();
 
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x + Math.cos(angle) * 30, this.y + Math.sin(angle) * 30);
-        ctx.stroke();
+        // Render Size
+        const drawW = 64;
+        const drawH = 64;
+        let drawX = this.x - drawW / 2;
+        let drawY = this.y - drawH / 2 - 15;
+
+        // Calculate Row
+        // Idle: 0-7, Run: 8-15
+        const rowOffset = this.state === 'run' ? 8 : 0;
+        const row = rowOffset + this.facing;
+
+        ctx.drawImage(this.sprite,
+            this.frameX * 64, row * 64,
+            64, 64,
+            drawX, drawY,
+            drawW, drawH
+        );
+
+        ctx.restore();
+        ctx.globalAlpha = 1.0;
     }
 }
