@@ -10,7 +10,7 @@ export const CONFIG = {
 
     // Player Stats
     PLAYER: {
-        HP: 10,
+        HP: 3,
         SPEED: 200,
         DASH_SPEED: 600,
         DASH_DURATION: 0.2,
@@ -107,5 +107,74 @@ export const CONFIG = {
         HEALTH_PACK_VALUE: 2,
         CHANCE_HEALTH: 0.2,
         CHANCE_WEAPON: 0.2
+    },
+
+    // Persistent Stats
+    STAT_UPGRADES: {
+        SPEED_BOOST_1: {
+            id: 'speed_boost_1',
+            name: 'Agility I',
+            description: '+10% Movement Speed',
+            cost: 100,
+            category: 'mobility',
+            oneTime: true
+        },
+        HEALTH_BOOST_1: {
+            id: 'health_boost_1',
+            name: 'Vitality I',
+            description: '+1 Max HP (Permanent)',
+            cost: 150,
+            category: 'health',
+            oneTime: true
+        },
+        RICOCHET: {
+            id: 'ricochet',
+            name: 'Ricochet',
+            description: 'Bullets bounce once off walls',
+            cost: 300,
+            category: 'attack',
+            oneTime: true
+        },
+        SPEED_BOOST_2: {
+            id: 'speed_boost_2',
+            name: 'Agility II',
+            description: '+15% Movement Speed',
+            cost: 250,
+            category: 'mobility',
+            oneTime: true
+        },
+        HEALTH_BOOST_2: {
+            id: 'health_boost_2',
+            name: 'Vitality II',
+            description: '+2 Max HP (Permanent)',
+            cost: 400,
+            category: 'health',
+            oneTime: true
+        }
+    },
+
+    // Unlockable Skills (Abilities)
+    SKILLS: {
+        RICOCHET_BULLETS: {
+            id: 'ricochet_bullets',
+            name: 'Ricochet Bullets',
+            description: 'Bullets bounce once off walls',
+            cost: 300,
+            oneTime: true
+        },
+        DASH_SHOCKWAVE: {
+            id: 'dash_shockwave',
+            name: 'Dash Shockwave',
+            description: 'Dash creates a damaging shockwave',
+            cost: 250,
+            oneTime: true
+        },
+        HEALTH_PACK_CARRIER: {
+            id: 'health_pack_carrier',
+            name: 'Health Pack Carrier',
+            description: 'Carry 1 health pack for emergency use',
+            cost: 200,
+            oneTime: true
+        }
     }
 };

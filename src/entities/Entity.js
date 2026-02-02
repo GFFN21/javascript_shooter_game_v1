@@ -92,5 +92,21 @@ export default class Entity {
         );
     }
 
-    render(ctx) { }
+    render(ctx) {
+        // If a sprite image is assigned and loaded, draw it centered.
+        if (this.sprite && this.sprite.complete) {
+            // Use explicit frame dimensions if defined (for animated sprites), otherwise use radius.
+            const w = this.frameWidth || this.radius * 2;
+            const h = this.frameHeight || this.radius * 2;
+            const drawX = this.x - w / 2;
+            const drawY = this.y - h / 2;
+            ctx.drawImage(this.sprite, 0, 0, w, h, drawX, drawY, w, h);
+        } else {
+            // Fallback: simple filled circle.
+            ctx.fillStyle = this.color || 'rgba(200,200,200,0.8)';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
 }

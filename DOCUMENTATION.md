@@ -9,6 +9,9 @@ The game follows a classic **Game Loop** architecture with a component-based ent
 *   **`Map.js`**: Responsible for procedural dungeon generation (Roguelike algorithm) and tile-based rendering.
 *   **`Entity.js`**: The base class for all dynamic objects (Player, Enemies, Bullets, Items).
 *   **`Config.js`**: Centralized configuration file for game balance, stats, and drop rates.
+*   **`SaveManager.js`**: Utility for managing multi-slot save data and legacy migration.
+*   **`UIManager.js`**: Manages all HUD elements, menus, and on-screen overlays.
+
 
 ```mermaid
 graph TD
@@ -62,7 +65,30 @@ To create a sense of depth, entities and map elements must be drawn in the corre
     *   **TrapDoor/Altar**: Forced to background layer to allow Player to walk "in front".
 *   **Walls**: Drawn last (on top) to simulate occlusion.
 
+
+### 2.5 Multi-Slot Save System (`SaveManager.js`)
+The game supports multiple persistent runs using a structured save format.
+*   **Storage**: Uses `localStorage` with JSON serialization.
+*   **Slots**: Supports up to 3 slots (`roguelike_save_slot_1`, etc.).
+*   **Metadata**: Stores high-level info (Level, Score, Date) in `roguelike_saves_metadata` for the selection screen.
+*   **Migration**: Automatically converts legacy single-save data into Slot 1 (`checkLegacyMigration()`).
+*   **Flow**:
+    1.  Game Start → `UIManager.showSaveSelection()`
+    2.  User Selects Slot → `Game.loadGame(slotId)`
+    3.  `Game` loads data → Recreates `World` → Starts Loop.
+
+### 2.6 User Interface System (`UIManager.js`)
+The UI is decoupled from game logic, handling DOM overlays.
+*   **States**:
+    *   **HUD**: Hearts, Gold, Level, Score, Weapon Slots.
+    *   **Menus**: Inventory (`I`), Stats (`P`), Skills (`O`).
+    *   **Modal**: Save Selection, Exit Confirmation.
+*   **Interactions**:
+    *   **Exclusivity**: Opening one menu (e.g., Inventory) automatically closes others.
+    *   **Pausing**: Menus trigger `Game.isPaused = true`.
+
 ---
+
 
 ## 3. Entity System
 The game uses a mix of Inheritance (Entity API) and Composition (Enemy Behaviors).
@@ -72,8 +98,9 @@ The game uses a mix of Inheritance (Entity API) and Composition (Enemy Behaviors
 classDiagram
     class Entity {
         x, y, radius
+        sprite [optional]
         update(dt)
-        render(ctx)
+        render(ctx) // Has fallback shape rendering
         onCollision(other)
     }
     class Player {
@@ -101,7 +128,7 @@ classDiagram
 Enemies use components to define behavior:
 *   **`MovementComponent`**: Handles navigation.
     *   `CHASE`: Direct vector movement.
-    *   `SMART`: A* Pathfinding around obstacles.
+    *   `SMART`: A* Pathfinding (Optimized) around obstacles.
 *   **`AttackComponent`**: Handles combat.
     *   `PISTOL`, `RAPID`: Single targeted shots.
     *   `SHOTGUN`, `HEAVY`: Spread shots.
@@ -126,16 +153,37 @@ Enemies use components to define behavior:
 
 ### 4.2 Combat Mechanics
 *   **Weapons**: Inventory system, diverse weaponry (Pistol, Shotgun, Heavy, Rifle).
-*   **Skills**:
+*   **Skills (Abilities)**:
     *   **Ricochet**: Bullets bounce off walls ONCE.
-    *   **Dash Knockback**: AoE knockback effect at end of dash.
+    *   **Dash Shockwave**: AoE damage/knockback at end of dash.
+    *   **Health Pack Carrier**: Passive ability to carry an extra health item.
+*   **Stats (Upgrades)**:
+    *   **Mobility**: Speed Boosts.
+    *   **Health**: Max HP increases.
+    *   **Attack**: Damage/Fire Rate (Planned).
 *   **Visuals**: Particle systems for hits, dashes, and kills.
 
-### 4.3 Player Animation
-The `Player` entity uses a sprite sheet-based animation system:
-*   **SpriteSheet**: `src/player_spritesheet.png` (4 columns x 3 rows).
-*   **State**: Tracks `facing` (Up, Down, Left, Right). Left is a flipped render of Right.
-*   **Rendering**: Draws 64x64 frames centered on the entity.
+
+### 4.3 Player Animation (V2)
+The `Player` entity uses an updated sprite sheet system:
+*   **SpriteSheet**: `src/player_spritesheet_v2.png` (8 columns x 16 rows).
+*   **State**: 
+    *   `state`: 'idle' (Rows 0-7) or 'run' (Rows 8-15).
+    *   `facing`: 0-7 (S, SE, E, NE, N, NW, W, SW) based on mouse angle.
+*   **Rendering**: 
+    *   Draws 96x96 frames (upscaled from 64x64) centered on the entity.
+    *   Includes a debug hitbox (green circle) for collision verification.
+
+### 4.4 Rendering Fallback
+To prevent crashes and visual glitches, the base `Entity` class (and subclasses like `Player`, `Enemy`) now implements a **Sprite Fallback System**:
+*   **Check**: Before drawing `this.sprite`, it verifies `this.sprite.complete`.
+*   **Fallback**: If the sprite is missing or loading, it draws a generic geometric shape (Circle) using `this.radius` and `this.color`.
+*   **Debug**: Ensures gameplay remains functional even with missing assets.
+
+### 4.5 Pathfinding Optimization
+The `SmartEnemy` uses A* Pathfinding (`Pathfinder.js`). Key optimizations prevent performance cliffs:
+*   **Dynamic Obstacle Caching**: Before the main A* loop, the pathfinder iterates *once* over all entities to identify blocked tiles (Doors).
+*   **Set Lookup**: Inside the neighbor search loop, it checks a `Set` of blocked coordinates instead of iterating the entire entity list again. This reduces complexity from O(Nodes * Entities) to O(Nodes + Entities).
 
 ---
 
@@ -163,5 +211,10 @@ src/
 │   ├── Player.js
 │   ├── Enemy.js
 │   └── ...
-└── ...
+├── ui/
+│   └── UIManager.js   # UI Logic
+└── utils/
+    ├── PathFinder.js  # A* Utility
+    └── SaveManager.js # Persistence
+
 ```

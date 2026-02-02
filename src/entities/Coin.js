@@ -38,7 +38,10 @@ export default class Coin extends Entity {
 
     onCollision(other) {
         if (other === this.game.world.player && !this.markedForDeletion) {
-            other.money += this.value;
+            other.money += this.value; // Run money
+            this.game.bank += this.value; // Persistent Bank
+            this.game.saveProgress();
+
             this.game.world.spawnParticles(this.x, this.y, '#FFD700', 5);
             this.markedForDeletion = true;
         }

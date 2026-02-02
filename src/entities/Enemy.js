@@ -85,13 +85,19 @@ export default class Enemy extends Entity {
 
 
     render(ctx) {
-        if (this.flashTimer > 0) {
-            ctx.fillStyle = '#ffffff';
+        // If a sprite is assigned and fully loaded, draw it centered.
+        if (this.sprite && this.sprite.complete) {
+            const w = this.frameWidth || this.radius * 2;
+            const h = this.frameHeight || this.radius * 2;
+            const drawX = this.x - w / 2;
+            const drawY = this.y - h / 2;
+            ctx.drawImage(this.sprite, 0, 0, w, h, drawX, drawY, w, h);
         } else {
-            ctx.fillStyle = this.color;
+            // Fallback: simple colored circle.
+            ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : (this.color || '#ff0000');
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
         }
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
     }
 }

@@ -5,19 +5,14 @@ import { CONFIG } from '../Config.js';
 export default class Player extends Entity {
     constructor(game, x, y) {
         super(game, x, y);
-        const stats = CONFIG.PLAYER;
-        this.speed = stats.SPEED;
-        this.radius = 15;
-        this.hp = stats.HP;
-        this.maxHp = stats.HP;
-        this.shootTimer = 0; // Fixed from shootCooldown
-        this.fireRate = 0.15;
-        this.mass = 5; // Heavy
+        // Initial Stats from Config
+        this.baseStats = CONFIG.PLAYER;
+        this.applySkills();
 
-        // Dash Properties
-        this.dashSpeed = stats.DASH_SPEED;
-        this.dashDuration = stats.DASH_DURATION;
-        this.dashCooldown = stats.DASH_COOLDOWN;
+        this.shootTimer = 0;
+        this.fireRate = 0.15;
+        this.mass = 5;
+
         this.dashTimer = 0;
         this.dashCooldownTimer = 0;
         this.isDashing = false;
@@ -59,6 +54,40 @@ export default class Player extends Entity {
         if (this.hp <= 0) {
             this.game.gameOver();
         }
+    }
+
+    applySkills() {
+        const stats = CONFIG.PLAYER;
+        let maxHp = stats.HP;
+        let speed = stats.SPEED;
+
+        if (this.game.unlockedStats) {
+            if (this.game.unlockedStats.has('health_boost_1')) maxHp += 1;
+            if (this.game.unlockedStats.has('health_boost_2')) maxHp += 2;
+            if (this.game.unlockedStats.has('speed_boost_1')) speed *= 1.10;
+            if (this.game.unlockedStats.has('speed_boost_2')) speed *= 1.15;
+        }
+
+        // Apply
+        this.speed = speed;
+
+        // Handle HP
+        const oldMax = this.maxHp || maxHp;
+        this.maxHp = maxHp;
+
+        // If first time initialization (undefined hp), set full hp
+        if (this.hp === undefined) {
+            this.hp = this.maxHp;
+        } else if (this.maxHp > oldMax) {
+            // Optional: If mid-game upgrade, maybe heal the difference?
+            // For now, keep current HP, user just gains POTENTIAL.
+            // Actually, if I buy +1 HP, I expect to gain a health slot.
+        }
+
+        // Dash defaults
+        this.dashSpeed = stats.DASH_SPEED;
+        this.dashDuration = stats.DASH_DURATION;
+        this.dashCooldown = stats.DASH_COOLDOWN;
     }
 
     addToInventory(item) {
@@ -327,7 +356,8 @@ export default class Player extends Entity {
             if (stats.isMelee) {
                 bullet.radius = 20; // Big hitbox for punch
             } else {
-                bullet.bounces = 1; // Ricochet Skill
+                // Apply Ricochet Skill
+                bullet.bounces = this.game.unlockedStats.has('ricochet') ? 1 : 0;
             }
 
             this.game.world.addEntity(bullet);
@@ -372,30 +402,43 @@ export default class Player extends Entity {
         // Shadow
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.beginPath();
-        ctx.ellipse(this.x, this.y + 20, 12, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(this.x, this.y + 25, 18, 9, 0, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.save();
 
-        // Render Size
-        const drawW = 64;
-        const drawH = 64;
+        // Render Size (~1.5x of 64)
+        const drawW = 96;
+        const drawH = 96;
         let drawX = this.x - drawW / 2;
-        let drawY = this.y - drawH / 2 - 15;
+        let drawY = this.y - drawH / 2 - 25;
 
         // Calculate Row
-        // Idle: 0-7, Run: 8-15
         const rowOffset = this.state === 'run' ? 8 : 0;
         const row = rowOffset + this.facing;
 
-        ctx.drawImage(this.sprite,
-            this.frameX * 64, row * 64,
-            64, 64,
-            drawX, drawY,
-            drawW, drawH
-        );
+        if (this.sprite && this.sprite.complete) {
+            ctx.drawImage(this.sprite,
+                this.frameX * 64, row * 64,
+                64, 64,
+                drawX, drawY,
+                drawW, drawH
+            );
+        } else {
+            // Fallback: simple filled circle using default color
+            ctx.fillStyle = this.color || 'rgba(200,200,200,0.8)';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         ctx.restore();
         ctx.globalAlpha = 1.0;
+
+        // Debug Hitbox
+        ctx.strokeStyle = 'green';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.stroke();
     }
 }

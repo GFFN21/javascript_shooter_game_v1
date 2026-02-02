@@ -13,10 +13,15 @@
         <canvas id="gameCanvas"></canvas>
         <div id="ui-layer">
             <div id="hud">
-                <div id="hearts-container">
-                    <!-- Hearts will be injected here -->
+                <div id="hud-left">
+                    <button id="exit-btn">MENU</button>
+                    <div id="hearts-container">
+                        <!-- Hearts will be injected here -->
+                    </div>
                 </div>
+
                 <div id="stats">
+
                     <div id="money-display">Gold: 0</div>
                     <div id="level-info">Level: <span id="level-display">1</span></div>
                     <div id="score-info">Score: <span id="score-display">0</span></div>
@@ -24,6 +29,23 @@
 
                 <div id="weapon-hud">
                     <!-- Injected via JS: 3 Slots -->
+                </div>
+
+                <div id="save-screen" class="hidden">
+                    <h1>SELECT RUN</h1>
+                    <div id="save-slots-container">
+                        <!-- Slots injected via JS -->
+                    </div>
+                </div>
+
+                <div id="exit-confirm-modal" class="hidden">
+                    <div class="modal-content">
+                        <h2>Are you sure you want to quit this run?</h2>
+                        <div class="modal-buttons">
+                            <button id="confirm-exit-btn">Yes</button>
+                            <button id="cancel-exit-btn">No</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="game-over-screen" class="hidden">
@@ -55,17 +77,23 @@
                 </div>
 
                 <div id="skills-screen" class="hidden">
-                    <h2>SKILLS</h2>
+                    <h2>STATS</h2>
                     <div id="skills-container">
-                        <div class="skill-tree-placeholder">
-                            <p>Skill Tree Coming Soon!</p>
-                            <!-- Placeholder slots -->
-                            <div class="skill-slot">A</div>
-                            <div class="skill-slot">B</div>
-                            <div class="skill-slot">C</div>
+                        <div id="skills-list">
+                            <!-- Injected via JS -->
                         </div>
                     </div>
                     <p class="hint">Press 'P' to Close</p>
+                </div>
+
+                <div id="abilities-screen" class="hidden">
+                    <h2>SKILLS</h2>
+                    <div id="abilities-container">
+                        <div id="abilities-list">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+                    <p class="hint">Press 'O' to Close</p>
                 </div>
             </div>
         </div>

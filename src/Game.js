@@ -2,6 +2,7 @@ import Input from './Input.js';
 import Camera from './Camera.js';
 import World from './World.js';
 import UIManager from './ui/UIManager.js';
+import SaveManager from './utils/SaveManager.js';
 
 export default class Game {
     constructor(canvas) {
@@ -14,9 +15,17 @@ export default class Game {
         this.accumulatedTime = 0;
         this.step = 1 / 60;
 
+        // Save State
+        this.currentSlotId = null;
+        SaveManager.checkLegacyMigration();
+
         this.level = 1;
         this.score = 0;
-        this.highScore = parseInt(localStorage.getItem('roguelike_highscore')) || 0;
+        this.highScore = 0;
+        this.bank = 0;
+        this.unlockedStats = new Set();
+        this.unlockedSkills = new Set();
+
         this.isGameOver = false;
         this.isPaused = false; // Inventory Pause
 
@@ -27,6 +36,55 @@ export default class Game {
 
         // Bind loop
         this.loop = this.loop.bind(this);
+
+        // Show Save Selection instead of starting immediately
+        this.ui.showSaveSelection();
+    }
+
+    loadGame(slotId) {
+        this.currentSlotId = slotId;
+        const data = SaveManager.loadSlot(slotId);
+
+        if (data && data.gameplay) {
+            this.bank = data.gameplay.bank || 0;
+            this.unlockedStats = new Set(data.gameplay.unlockedStats || []);
+            this.unlockedSkills = new Set(data.gameplay.unlockedSkills || []);
+            this.highScore = data.gameplay.highScore || 0;
+
+            // Restore Level and Score for continuity
+            this.level = data.gameplay.level || 1;
+            this.score = data.gameplay.score || 0;
+        }
+
+        // CRITICAL: Recreate World to ensure Player is initialized with loaded stats!
+        // The previous world was created in constructor with empty stats.
+        this.world = new World(this);
+
+        this.start();
+    }
+
+    saveProgress() {
+        if (!this.currentSlotId) return;
+
+        const data = {
+            metadata: {
+                name: `Run #${this.currentSlotId}`,
+                lastSaved: Date.now()
+            },
+            gameplay: {
+                bank: this.bank,
+                unlockedStats: Array.from(this.unlockedStats),
+                unlockedSkills: Array.from(this.unlockedSkills),
+                highScore: this.highScore,
+                level: this.level,
+                score: this.score
+            },
+            inventory: {
+                // Future: save current player backpack/weapons here
+            }
+        };
+
+        SaveManager.saveSlot(this.currentSlotId, data);
     }
 
     start() {
@@ -42,6 +100,7 @@ export default class Game {
         }
 
         this.level = 1;
+        // Score resets, but Bank persists!
         this.score = 0;
         this.isGameOver = false;
         this.isPaused = false;
@@ -82,9 +141,13 @@ export default class Game {
         if (this.input.isPressed('KeyI')) {
             this.ui.toggleInventory();
         }
-        // Toggle Skills
+        // Toggle Stats
         if (this.input.isPressed('KeyP')) {
-            this.ui.toggleSkills();
+            this.ui.toggleStats();
+        }
+        // Toggle Abilities (Skills)
+        if (this.input.isPressed('KeyO')) {
+            this.ui.toggleAbilities();
         }
 
         // Always update Input (to clear pressed keys)

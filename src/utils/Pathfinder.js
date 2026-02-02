@@ -25,6 +25,18 @@ export default class Pathfinder {
 
         let openList = [];
         let closedList = new Set();
+        let blockedTiles = new Set();
+
+        // Pre-calculate dynamic obstacles (Doors)
+        // Optimization: Iterating all entities inside the A* loop is too slow (O(Nodes * Entities)).
+        // We do it once here (O(Entities)).
+        for (const e of this.world.entities) {
+            if (e.constructor.name === 'Door' && e.isSolid()) {
+                const tx = Math.floor(e.x / this.map.tileSize);
+                const ty = Math.floor(e.y / this.map.tileSize);
+                blockedTiles.add(`${tx},${ty}`);
+            }
+        }
 
         openList.push(startNode);
 
@@ -53,21 +65,9 @@ export default class Pathfinder {
                 if (nx < 0 || nx >= this.map.width || ny < 0 || ny >= this.map.height) continue;
                 if (this.map.tiles[ny][nx] === 1) continue; // Wall
 
-                // Check Doors
-                let blocked = false;
-                for (const e of this.world.entities) {
-                    if (e.constructor.name === 'Door' && e.isSolid()) {
-                        // Door is typically at e.x, e.y (pixel coords)
-                        // Convert tile coords to check
-                        const tx = Math.floor(e.x / this.map.tileSize);
-                        const ty = Math.floor(e.y / this.map.tileSize);
-                        if (tx === nx && ty === ny) {
-                            blocked = true;
-                            break;
-                        }
-                    }
-                }
-                if (blocked) continue;
+                // Check Dynamic Obstacles (Doors)
+                if (blockedTiles.has(`${nx},${ny}`)) continue;
+
                 if (closedList.has(`${nx},${ny}`)) continue;
 
                 const g = current.g + 1;

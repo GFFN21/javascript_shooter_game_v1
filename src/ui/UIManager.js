@@ -1,3 +1,5 @@
+import { CONFIG } from '../Config.js';
+import SaveManager from '../utils/SaveManager.js';
 export default class UIManager {
     constructor(game) {
         this.game = game;
@@ -9,7 +11,10 @@ export default class UIManager {
         this.gameOverScreen = document.getElementById('game-over-screen');
         this.finalScore = document.getElementById('final-score');
         this.inventoryScreen = document.getElementById('inventory-screen');
-        this.skillsScreen = document.getElementById('skills-screen'); // New
+        this.skillsScreen = document.getElementById('skills-screen');
+        this.abilitiesScreen = document.getElementById('abilities-screen');
+        this.saveScreen = document.getElementById('save-screen'); // New
+        this.saveSlotsContainer = document.getElementById('save-slots-container'); // New
         this.inventoryGrid = document.getElementById('inventory-grid');
         this.equipmentGrid = document.getElementById('equipment-grid');
         this.weaponsGrid = document.getElementById('weapons-grid');
@@ -25,12 +30,96 @@ export default class UIManager {
             this.hideGameOver();
         });
 
+        // Exit Button
+        // Exit Button & Confirmation
+        this.exitBtn = document.getElementById('exit-btn');
+        this.exitConfirmModal = document.getElementById('exit-confirm-modal');
+        this.confirmExitBtn = document.getElementById('confirm-exit-btn');
+        this.cancelExitBtn = document.getElementById('cancel-exit-btn');
+
+        this.exitBtn.addEventListener('click', () => {
+            this.exitConfirmModal.classList.remove('hidden');
+            this.game.isPaused = true;
+        });
+
+        this.confirmExitBtn.addEventListener('click', () => {
+            this.exitConfirmModal.classList.add('hidden');
+            this.game.saveProgress();
+            this.showSaveSelection();
+        });
+
+        this.cancelExitBtn.addEventListener('click', () => {
+            this.exitConfirmModal.classList.add('hidden');
+            this.game.isPaused = false;
+        });
+
         this.lastHp = -1;
 
         // Drag & Drop State
         this.draggedSource = null; // 'backpack' or 'weapon'
         this.draggedIndex = -1;
         this.hoveredSlot = null; // { source: '...', index: ... }
+    }
+
+    showSaveSelection() {
+        this.saveScreen.classList.remove('hidden');
+        this.renderSaveSlots();
+        this.game.isPaused = true;
+    }
+
+    hideSaveSelection() {
+        this.saveScreen.classList.add('hidden');
+        this.game.isPaused = false;
+    }
+
+    renderSaveSlots() {
+        // Note: We need SaveManager here. Since this is an ESM project, 
+        // we should probably import it at the top.
+        // I'll add the import at the top in a separate chunk.
+
+        const slots = [1, 2, 3]; // Support 3 slots
+        const metadata = SaveManager.listSlots();
+
+        this.saveSlotsContainer.innerHTML = '';
+
+        slots.forEach(slotId => {
+            const id = slotId.toString();
+            const slotData = metadata[id];
+
+            const slotEl = document.createElement('div');
+            slotEl.className = `save-slot ${!slotData ? 'empty' : ''}`;
+
+            if (slotData) {
+                slotEl.innerHTML = `
+                    <div class="save-slot-info">
+                        <h3>${slotData.name}</h3>
+                        <p>Level ${slotData.level} | Score: ${slotData.score}</p>
+                        <p>Last Saved: ${new Date(slotData.lastSaved).toLocaleString()}</p>
+                    </div>
+                `;
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-slot-btn';
+                deleteBtn.textContent = 'DELETE';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete ${slotData.name}?`)) {
+                        SaveManager.deleteSlot(id);
+                        this.renderSaveSlots();
+                    }
+                };
+                slotEl.appendChild(deleteBtn);
+            } else {
+                slotEl.innerHTML = `<h3>EMPTY SLOT</h3><p>Click to start new run</p>`;
+            }
+
+            slotEl.onclick = () => {
+                this.hideSaveSelection();
+                this.game.loadGame(id);
+            };
+
+            this.saveSlotsContainer.appendChild(slotEl);
+        });
     }
 
     handleInventoryClick(e, source) {
@@ -72,7 +161,10 @@ export default class UIManager {
         // If skills is open, close it first? Or just toggle inventory.
         // Let's ensure mutually exclusive UI
         if (!this.skillsScreen.classList.contains('hidden')) {
-            this.toggleSkills(); // Close skills
+            this.toggleStats(); // Close stats
+        }
+        if (!this.abilitiesScreen.classList.contains('hidden')) {
+            this.toggleAbilities(); // Close abilities
         }
 
         const isHidden = this.inventoryScreen.classList.contains('hidden');
@@ -86,18 +178,242 @@ export default class UIManager {
         }
     }
 
-    toggleSkills() {
+    toggleStats() {
         if (!this.inventoryScreen.classList.contains('hidden')) {
             this.toggleInventory(); // Close inventory
+        }
+        if (!this.abilitiesScreen.classList.contains('hidden')) {
+            this.toggleAbilities(); // Close abilities
         }
 
         const isHidden = this.skillsScreen.classList.contains('hidden');
         if (isHidden) {
             this.skillsScreen.classList.remove('hidden');
+            this.renderStats(); // Render List
             this.game.isPaused = true;
         } else {
             this.skillsScreen.classList.add('hidden');
             this.game.isPaused = false;
+        }
+    }
+
+    toggleAbilities() {
+        if (!this.inventoryScreen.classList.contains('hidden')) {
+            this.toggleInventory(); // Close inventory
+        }
+        if (!this.skillsScreen.classList.contains('hidden')) {
+            this.toggleStats(); // Close stats
+        }
+
+        const isHidden = this.abilitiesScreen.classList.contains('hidden');
+        if (isHidden) {
+            this.abilitiesScreen.classList.remove('hidden');
+            this.renderAbilities(); // Render List
+            this.game.isPaused = true;
+        } else {
+            this.abilitiesScreen.classList.add('hidden');
+            this.game.isPaused = false;
+        }
+    }
+
+    renderStats() {
+        const list = document.getElementById('skills-list');
+        if (!list) return;
+
+        list.innerHTML = '';
+
+        // Bank Display (spans all columns)
+        const bankDisplay = document.createElement('div');
+        bankDisplay.style.gridColumn = '1 / -1';
+        bankDisplay.style.color = '#FFD700';
+        bankDisplay.style.marginBottom = '10px';
+        bankDisplay.style.fontSize = '20px';
+        bankDisplay.style.textAlign = 'center';
+        bankDisplay.textContent = `Bank: ${this.game.bank} G`;
+        list.appendChild(bankDisplay);
+
+        // Group stats by category
+        const categories = {
+            attack: [],
+            health: [],
+            mobility: []
+        };
+
+        Object.values(CONFIG.STAT_UPGRADES).forEach(stat => {
+            if (categories[stat.category]) {
+                categories[stat.category].push(stat);
+            }
+        });
+
+        // Create columns for each category
+        const categoryNames = {
+            attack: 'Attack',
+            health: 'Health',
+            mobility: 'Mobility'
+        };
+
+        ['attack', 'health', 'mobility'].forEach(categoryKey => {
+            const column = document.createElement('div');
+            column.className = 'stat-category';
+
+            // Category header
+            const header = document.createElement('h3');
+            header.textContent = categoryNames[categoryKey];
+            column.appendChild(header);
+
+            // Stats in this category
+            categories[categoryKey].forEach(stat => {
+                const isUnlocked = this.game.unlockedStats.has(stat.id);
+                const canAfford = this.game.bank >= stat.cost;
+
+                const item = document.createElement('div');
+                item.className = `skill-item ${isUnlocked ? 'unlocked' : ''}`;
+
+                // Info Section
+                const info = document.createElement('div');
+                info.className = 'skill-info';
+
+                const name = document.createElement('div');
+                name.className = 'skill-name';
+                name.textContent = stat.name;
+
+                const desc = document.createElement('div');
+                desc.className = 'skill-desc';
+                desc.textContent = stat.description;
+
+                info.appendChild(name);
+                info.appendChild(desc);
+
+                // Action Section
+                const action = document.createElement('div');
+                action.className = 'skill-action';
+
+                if (!isUnlocked) {
+                    const cost = document.createElement('div');
+                    cost.className = 'skill-cost';
+                    cost.textContent = `${stat.cost} G`;
+                    action.appendChild(cost);
+                }
+
+                const btn = document.createElement('button');
+                btn.className = 'buy-btn';
+
+                if (isUnlocked) {
+                    btn.textContent = 'Owned';
+                    btn.disabled = true;
+                } else {
+                    btn.textContent = 'Buy';
+                    btn.disabled = !canAfford;
+                    if (canAfford) {
+                        btn.onclick = () => this.handleStatBuy(stat);
+                    }
+                }
+
+                action.appendChild(btn);
+                item.appendChild(info);
+                item.appendChild(action);
+
+                column.appendChild(item);
+            });
+
+            list.appendChild(column);
+        });
+    }
+
+    renderAbilities() {
+        const list = document.getElementById('abilities-list');
+        if (!list) return;
+
+        list.innerHTML = '';
+
+        // Bank Display
+        const bankDisplay = document.createElement('div');
+        bankDisplay.style.color = '#FFD700';
+        bankDisplay.style.marginBottom = '10px';
+        bankDisplay.style.fontSize = '20px';
+        bankDisplay.style.textAlign = 'center';
+        bankDisplay.textContent = `Bank: ${this.game.bank} G`;
+        list.appendChild(bankDisplay);
+
+        Object.values(CONFIG.SKILLS).forEach(skill => {
+            const isUnlocked = this.game.unlockedSkills.has(skill.id);
+            const canAfford = this.game.bank >= skill.cost;
+
+            const item = document.createElement('div');
+            item.className = `skill-item ${isUnlocked ? 'unlocked' : ''}`;
+
+            // Info Section
+            const info = document.createElement('div');
+            info.className = 'skill-info';
+
+            const name = document.createElement('div');
+            name.className = 'skill-name';
+            name.textContent = skill.name;
+
+            const desc = document.createElement('div');
+            desc.className = 'skill-desc';
+            desc.textContent = skill.description;
+
+            info.appendChild(name);
+            info.appendChild(desc);
+
+            // Action Section
+            const action = document.createElement('div');
+            action.className = 'skill-action';
+
+            if (!isUnlocked) {
+                const cost = document.createElement('div');
+                cost.className = 'skill-cost';
+                cost.textContent = `${skill.cost} G`;
+                action.appendChild(cost);
+            }
+
+            const btn = document.createElement('button');
+            btn.className = 'buy-btn';
+
+            if (isUnlocked) {
+                btn.textContent = 'Owned';
+                btn.disabled = true;
+            } else {
+                btn.textContent = 'Buy';
+                btn.disabled = !canAfford;
+                if (canAfford) {
+                    btn.onclick = () => this.handleSkillBuy(skill);
+                }
+            }
+
+            action.appendChild(btn);
+            item.appendChild(info);
+            item.appendChild(action);
+
+            list.appendChild(item);
+        });
+    }
+
+    handleSkillBuy(skill) {
+        if (this.game.bank >= skill.cost) {
+            this.game.bank -= skill.cost;
+            this.game.unlockedSkills.add(skill.id);
+            this.game.saveProgress();
+
+            this.renderAbilities(); // Refresh UI
+        }
+    }
+
+    handleStatBuy(stat) {
+        if (this.game.bank >= stat.cost) {
+            this.game.bank -= stat.cost;
+            this.game.unlockedStats.add(stat.id);
+            this.game.saveProgress();
+
+            // Apply immediately to Player
+            if (this.game.world.player) {
+                this.game.world.player.applySkills();
+            }
+
+            this.renderStats(); // Refresh UI
+
+            // Optional: Play unlock sound?
         }
     }
 
@@ -212,9 +528,11 @@ export default class UIManager {
 
         const p = this.game.world.player;
 
-        // Update Hearts only on change
-        if (p.hp !== this.lastHp) {
+        // Update Hearts on HP or MaxHP change
+        if (p.hp !== this.lastHp || p.maxHp !== this.lastMaxHp) {
             this.lastHp = p.hp;
+            this.lastMaxHp = p.maxHp;
+
             this.heartsContainer.innerHTML = '';
             for (let i = 0; i < p.maxHp; i++) {
                 const heart = document.createElement('div');
@@ -228,7 +546,8 @@ export default class UIManager {
 
         this.levelDisplay.textContent = this.game.level;
         this.scoreDisplay.textContent = this.game.score;
-        this.moneyDisplay.textContent = 'Gold: ' + this.game.world.player.money;
+        // Show Bank Gold as it's the spending currency
+        this.moneyDisplay.textContent = 'Gold: ' + this.game.bank;
 
         this.updateWeaponHUD();
     }
