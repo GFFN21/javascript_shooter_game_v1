@@ -130,10 +130,10 @@ export default class TouchControls {
         };
 
         const handleMove = (e) => {
-            e.preventDefault();
             if (!data.active) return;
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === data.id) {
+                    e.preventDefault(); // Only prevent default for joystick touches
                     const t = e.changedTouches[i];
                     this.updateStick(t.clientX, t.clientY, zone, data, puck);
                     break;
@@ -142,9 +142,9 @@ export default class TouchControls {
         };
 
         const handleEnd = (e) => {
-            e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === data.id) {
+                    e.preventDefault(); // Only prevent default for joystick touches
                     data.active = false;
                     data.x = 0;
                     data.y = 0;
@@ -155,7 +155,7 @@ export default class TouchControls {
         };
 
         zone.addEventListener('touchstart', handleStart);
-        window.addEventListener('touchmove', handleMove, { passive: false }); // Listen globally for move to allow sliding out
+        window.addEventListener('touchmove', handleMove, { passive: false });
         window.addEventListener('touchend', handleEnd);
     }
 
