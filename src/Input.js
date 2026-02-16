@@ -1,4 +1,5 @@
 import TouchControls from './ui/TouchControls.js';
+import { Platform } from './Platform.js';
 
 export default class Input {
     constructor(game) {
@@ -7,29 +8,30 @@ export default class Input {
         this.keysPressed = new Set(); // For one-shot input
         this.mouse = { x: 0, y: 0, down: false };
 
-        this.touchControls = new TouchControls(game);
+        // Only create touch controls on mobile
+        this.touchControls = null;
 
-        window.addEventListener('keydown', e => {
-            this.keys.add(e.code);
-            this.keysPressed.add(e.code);
-        });
-        window.addEventListener('keyup', e => this.keys.delete(e.code));
+        if (Platform.isMobile) {
+            this.touchControls = new TouchControls(game);
+        } else {
+            // PC-only: bind keyboard and mouse
+            window.addEventListener('keydown', e => {
+                this.keys.add(e.code);
+                this.keysPressed.add(e.code);
+            });
+            window.addEventListener('keyup', e => this.keys.delete(e.code));
 
-        window.addEventListener('mousemove', e => {
-            const rect = this.game.canvas.getBoundingClientRect();
-            // Calculate scale factor (CSS size vs Logical size)
-            const scaleX = this.game.canvas.width / rect.width;
-            const scaleY = this.game.canvas.height / rect.height;
+            window.addEventListener('mousemove', e => {
+                const rect = this.game.canvas.getBoundingClientRect();
+                const scaleX = this.game.canvas.width / rect.width;
+                const scaleY = this.game.canvas.height / rect.height;
+                this.mouse.x = (e.clientX - rect.left) * scaleX;
+                this.mouse.y = (e.clientY - rect.top) * scaleY;
+            });
 
-            // Remap
-            this.mouse.x = (e.clientX - rect.left) * scaleX;
-            this.mouse.y = (e.clientY - rect.top) * scaleY;
-        });
-
-        window.addEventListener('mousedown', () => {
-            this.mouse.down = true;
-        });
-        window.addEventListener('mouseup', () => this.mouse.down = false);
+            window.addEventListener('mousedown', () => this.mouse.down = true);
+            window.addEventListener('mouseup', () => this.mouse.down = false);
+        }
     }
 
     isDown(code) {
@@ -40,46 +42,42 @@ export default class Input {
         return this.keysPressed.has(code);
     }
 
-    // New Abstractions
+    // ---- Movement ----
     getMovement() {
-        let x = 0;
-        let y = 0;
+        if (Platform.isMobile) {
+            // Joystick only
+            const stick = this.touchControls.leftStick;
+            if (stick.active) {
+                return { x: stick.x, y: stick.y };
+            }
+            return { x: 0, y: 0 };
+        }
 
-        // Keyboard
+        // PC: keyboard only
+        let x = 0, y = 0;
         if (this.isDown('KeyW')) y -= 1;
         if (this.isDown('KeyS')) y += 1;
         if (this.isDown('KeyA')) x -= 1;
         if (this.isDown('KeyD')) x += 1;
 
-        // Joystick Overrides (if active)
-        if (this.touchControls && this.touchControls.leftStick.active) {
-            x += this.touchControls.leftStick.x;
-            y += this.touchControls.leftStick.y;
-        }
-
-        // Normalize (Clamping length to 1 is better for analog feel)
         const len = Math.sqrt(x * x + y * y);
-        if (len > 1) {
-            x /= len;
-            y /= len;
-        }
+        if (len > 1) { x /= len; y /= len; }
 
         return { x, y };
     }
 
+    // ---- Aiming ----
     getAimVector(playerX, playerY) {
-        // 1. Check Touch Aim (Right Joystick)
-        if (this.touchControls && this.touchControls.rightStick.active) {
-            const rx = this.touchControls.rightStick.x;
-            const ry = this.touchControls.rightStick.y;
-            // Simple deadzone check
-            if (Math.abs(rx) > 0.1 || Math.abs(ry) > 0.1) {
-                return { x: rx, y: ry };
+        if (Platform.isMobile) {
+            // Right joystick only
+            const rs = this.touchControls.rightStick;
+            if (rs.active && (Math.abs(rs.x) > 0.1 || Math.abs(rs.y) > 0.1)) {
+                return { x: rs.x, y: rs.y };
             }
+            return { x: 1, y: 0 }; // Default right
         }
 
-        // 2. Fallback to Mouse
-        // Calculate vector from Player Screen Pos to Mouse Screen Pos
+        // PC: mouse only
         const worldPos = this.game.camera.screenToWorld(this.mouse.x, this.mouse.y);
         const dx = worldPos.x - playerX;
         const dy = worldPos.y - playerY;
@@ -88,45 +86,62 @@ export default class Input {
         if (len > 0) {
             return { x: dx / len, y: dy / len };
         }
-        return { x: 1, y: 0 }; // Default right
+        return { x: 1, y: 0 };
     }
 
+    // ---- Shooting ----
     isShooting() {
-        // Touch: Shoot if Right Stick is pushed far enough
-        if (this.touchControls && this.touchControls.rightStick.active) {
-            const mag = Math.sqrt(Math.pow(this.touchControls.rightStick.x, 2) + Math.pow(this.touchControls.rightStick.y, 2));
-            if (mag > 0.5) return true;
+        if (Platform.isMobile) {
+            const rs = this.touchControls.rightStick;
+            if (rs.active) {
+                const mag = Math.sqrt(rs.x * rs.x + rs.y * rs.y);
+                return mag > 0.5;
+            }
+            return false;
         }
-
         return this.mouse.down;
     }
 
+    // ---- Dash ----
     isDashing() {
-        return this.isPressed('Space') || this.isPressed('ShiftLeft') || (this.touchControls && this.touchControls.buttons.dash);
+        if (Platform.isMobile) {
+            return this.touchControls && this.touchControls.buttons.dash;
+        }
+        return this.isPressed('Space') || this.isPressed('ShiftLeft');
     }
 
+    // ---- Interact ----
     isInteracting() {
-        return this.isPressed('KeyE') || (this.touchControls && this.touchControls.buttons.interact);
+        if (Platform.isMobile) {
+            return this.touchControls && this.touchControls.buttons.interact;
+        }
+        return this.isPressed('KeyE');
     }
 
+    // ---- Weapon Switching ----
     isSwitchingWeapon() {
-        return this.isPressed('KeyQ') || this.isPressed('ArrowLeft') || this.isPressed('ArrowRight') || (this.touchControls && this.touchControls.buttons.switchWeapon);
+        if (Platform.isMobile) {
+            return this.touchControls && this.touchControls.buttons.switchWeapon;
+        }
+        return this.isPressed('KeyQ') || this.isPressed('ArrowLeft') || this.isPressed('ArrowRight');
     }
 
     getSwitchWeaponDirection() {
-        // Returns -1 for previous, +1 for next
+        if (Platform.isMobile) return 1; // Touch button always cycles forward
         if (this.isPressed('ArrowLeft')) return -1;
-        return 1; // ArrowRight, Q, touch button all cycle forward
+        return 1;
     }
 
+    // ---- Utility ----
     isMoving() {
         const m = this.getMovement();
         return (m.x * m.x + m.y * m.y) > 0.01;
     }
 
     update() {
-        this.keysPressed.clear(); // Clear one-shot keys at end of frame
-        // Touch buttons one-shot? 
-        // We'll leave them as "held" for now.
+        this.keysPressed.clear();
+        if (this.touchControls) {
+            this.touchControls.update();
+        }
     }
 }

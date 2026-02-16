@@ -1,46 +1,30 @@
+// TouchControls — only instantiated on mobile.
+// No dynamic show/hide. If this class exists, it's always active.
 export default class TouchControls {
     constructor(game) {
         this.game = game;
-        this.visible = false;
+        this.visible = true;
 
         // Joysticks
-        this.leftStick = { x: 0, y: 0, active: false, id: null, origin: { x: 0, y: 0 }, title: 'MOVE' };
-        this.rightStick = { x: 0, y: 0, active: false, id: null, origin: { x: 0, y: 0 }, title: 'AIM' };
+        this.leftStick = { x: 0, y: 0, active: false, id: null };
+        this.rightStick = { x: 0, y: 0, active: false, id: null };
 
-        // Buttons
+        // Action Buttons (held state)
         this.buttons = {
             dash: false,
             switchWeapon: false,
-            interact: false // Keep for now
+            interact: false
+        };
+
+        // One-shot buttons (cleared each frame)
+        this._buttonsPressed = {
+            dash: false,
+            switchWeapon: false,
+            interact: false
         };
 
         this.createUI();
         this.bindEvents();
-
-        // Detect Mobile
-        this.checkMobile();
-        window.addEventListener('resize', () => this.checkMobile());
-    }
-
-    checkMobile() {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
-        if (isMobile) {
-            this.show();
-        } else {
-            this.hide();
-        }
-    }
-
-    show() {
-        this.container.style.display = 'block';
-        this.visible = true;
-        document.body.classList.add('mobile');
-    }
-
-    hide() {
-        this.container.style.display = 'none';
-        this.visible = false;
-        document.body.classList.remove('mobile');
     }
 
     createUI() {
@@ -48,7 +32,7 @@ export default class TouchControls {
         this.container.id = 'touch-controls';
         Object.assign(this.container.style, {
             position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
-            pointerEvents: 'none', zIndex: '100', display: 'none'
+            pointerEvents: 'none', zIndex: '100'
         });
 
         // --- Left Joystick Zone (Movement) ---
@@ -61,16 +45,23 @@ export default class TouchControls {
         this.rightPuck = this.createJoystickPuck(this.rightZone);
         this.container.appendChild(this.rightZone);
 
-        // --- Buttons ---
-        // Dash: Above Right Joystick
+        // --- Action Buttons ---
         this.createButton('dash', 'DASH', 'bottom: 220px; right: 60px; background: rgba(0, 255, 255, 0.5); width: 70px; height: 70px;');
-
-        // Switch Weapon: Near Dash (Left of it?)
         this.createButton('switchWeapon', '⟳', 'bottom: 220px; right: 150px; background: rgba(255, 255, 0, 0.5); width: 60px; height: 60px; font-size: 30px;');
-
-        // Interact: Let's put it contextually or central? 
-        // For now, place it High Center-Right?
         this.createButton('interact', 'HAND', 'bottom: 120px; right: 180px; background: rgba(0, 255, 0, 0.5); width: 60px; height: 60px;');
+
+        // --- Mobile HUD Menu Buttons (top-left, below HUD) ---
+        this.createMenuButton('INV', () => {
+            if (this.game.ui) this.game.ui.toggleInventory();
+        }, 'top: 100px; left: 20px;');
+
+        this.createMenuButton('STATS', () => {
+            if (this.game.ui) this.game.ui.toggleStats();
+        }, 'top: 100px; left: 90px;');
+
+        this.createMenuButton('SKILLS', () => {
+            if (this.game.ui) this.game.ui.toggleAbilities();
+        }, 'top: 100px; left: 175px;');
 
         document.body.appendChild(this.container);
     }
@@ -109,8 +100,42 @@ export default class TouchControls {
             ${style}
         `;
 
-        btn.addEventListener('touchstart', (e) => { e.preventDefault(); this.buttons[action] = true; });
-        btn.addEventListener('touchend', (e) => { e.preventDefault(); this.buttons[action] = false; });
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.buttons[action] = true;
+            this._buttonsPressed[action] = true;
+        });
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.buttons[action] = false;
+        });
+
+        this.container.appendChild(btn);
+    }
+
+    createMenuButton(label, onClick, style) {
+        const btn = document.createElement('div');
+        btn.innerText = label;
+        btn.style.cssText = `
+            position: absolute; border-radius: 8px; display: flex;
+            align-items: center; justify-content: center;
+            color: white; font-family: sans-serif; font-weight: bold; font-size: 12px;
+            pointer-events: auto; user-select: none; touch-action: none;
+            background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3);
+            width: 60px; height: 35px; cursor: pointer;
+            ${style}
+        `;
+
+        // Use both touchstart and click for maximum compatibility
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick();
+        });
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onClick();
+        });
 
         this.container.appendChild(btn);
     }
@@ -133,7 +158,7 @@ export default class TouchControls {
             if (!data.active) return;
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === data.id) {
-                    e.preventDefault(); // Only prevent default for joystick touches
+                    e.preventDefault();
                     const t = e.changedTouches[i];
                     this.updateStick(t.clientX, t.clientY, zone, data, puck);
                     break;
@@ -144,7 +169,7 @@ export default class TouchControls {
         const handleEnd = (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === data.id) {
-                    e.preventDefault(); // Only prevent default for joystick touches
+                    e.preventDefault();
                     data.active = false;
                     data.x = 0;
                     data.y = 0;
@@ -169,7 +194,6 @@ export default class TouchControls {
         let dy = clientY - centerY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Normalize output (-1 to 1)
         if (dist > maxDist) {
             dx = (dx / dist) * maxDist;
             dy = (dy / dist) * maxDist;
@@ -178,7 +202,14 @@ export default class TouchControls {
         data.x = dx / maxDist;
         data.y = dy / maxDist;
 
-        // Visual
         puck.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    }
+
+    // Called at end of frame by Input.update()
+    update() {
+        // Clear one-shot button states
+        this._buttonsPressed.dash = false;
+        this._buttonsPressed.switchWeapon = false;
+        this._buttonsPressed.interact = false;
     }
 }
