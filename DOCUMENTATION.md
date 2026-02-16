@@ -74,16 +74,40 @@ graph TD
 ## 3. Core Systems
 
 ### 3.1 The Game Loop (`Game.js`)
-1.  **Input Handling**: Captures state via `Input.js`.
-2.  **Update Loop**: 
-    *   Calculates `dt`.
-    *   Calls `world.update(dt)`.
-    *   Measures execution time for Debug Panel.
-3.  **Render Loop**: 
-    *   Clears canvas.
-    *   Calls `world.render(ctx)`.
-    *   Measures execution time broken down by layer (Floor, Entities, Walls).
-    *   Draws UI overlays.
+The game loop uses a **Fixed Time Step** architecture. This ensures physics and logic (movement, collision) always run at a consistent 60 FPS (16.6ms per step), regardless of the actual frame rate (e.g., 144Hz monitors or slow laptops).
+
+#### **3.1.1 Main Loop Flow**
+1.  **Input**: Capture user actions.
+2.  **Accumulator**: Add elapsed time (`dt`) to a "time bank".
+3.  **Update**: Consume time from the bank in fixed 16ms chunks.
+4.  **Render**: Draw the state as it is *after* the updates.
+
+```mermaid
+graph TD
+    Start([Frame Start]) --> CalcDT[Calculate Delta Time]
+    CalcDT --> Accum[Add to Accumulator]
+    Accum --> Check{Accumulator > 16ms?}
+    Check -- Yes --> Update[Run Fixed Update Step]
+    Update --> Subtract[Subtract 16ms]
+    Subtract --> Check
+    Check -- No --> Render[Render Frame]
+    Render --> End([Frame End])
+```
+
+#### **3.1.2 Render Loop Breakdown**
+The `World.render()` method layers visuals to create depth.
+
+```mermaid
+graph TD
+    Start([Render Start]) --> Clear[Clear Canvas]
+    Clear --> Floor[Draw Floor Layer]
+    Floor --> Entities[Sort Entities by Y]
+    Entities --> DrawEnts[Draw Entities]
+    DrawEnts --> Particles[Draw Particles Layer]
+    Particles --> Walls[Draw Walls Layer]
+    Walls --> UI[Overlay UI / HUD]
+    UI --> End([Render End])
+```
 
 ### 3.2 Spatial Partitioning (`SpatialHash.js` & `World.js`)
 To handle high entity counts without lag:

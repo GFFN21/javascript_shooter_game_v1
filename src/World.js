@@ -235,7 +235,13 @@ export default class World {
     }
 
     update(dt) {
-        this.entities.forEach(e => e.update(dt));
+        this.updateActiveZones();
+
+        this.entities.forEach(e => {
+            if (e.isActive || e.alwaysUpdate) {
+                e.update(dt);
+            }
+        });
         this.particles.forEach(p => p.update(dt));
 
         // Remove dead entities
@@ -243,101 +249,136 @@ export default class World {
         this.particles = this.particles.filter(p => !p.markedForDeletion);
 
         this.checkCollisions();
-        this.checkRoomStatus();
         this.checkExit();
     }
 
-    checkRoomStatus() {
+    updateActiveZones() {
         if (!this.player) return;
 
         // Pixel to Tile
         const tx = Math.floor(this.player.x / this.map.tileSize);
         const ty = Math.floor(this.player.y / this.map.tileSize);
 
-        // Check if inside any room
+        // 1. Identify Current Room
         let currentRoom = null;
-        for (const r of this.map.rooms) {
+        let currentRoomIndex = -1;
+        for (let i = 0; i < this.map.rooms.length; i++) {
+            const r = this.map.rooms[i];
             if (tx >= r.x && tx < r.x + r.w &&
                 ty >= r.y && ty < r.y + r.h) {
                 currentRoom = r;
+                currentRoomIndex = i;
                 break;
             }
         }
 
+        // 2. Logic Culling: Wake up relevant entities
+        // If we are in a corridor (currentRoom is null), we should keep "Active Room" awake?
+        // Or keep EVERYTHING awake? Corridors = safe zone?
+        // Strategy: 
+        // - If in Room X: Wake Room X and connected Neighbors. Sleep others.
+        // - If in Corridor: Keep activeRoom awake + neighbors? Or just wake ALL Corridors?
+        // - Entities in corridors have roomID = -1 (Always Active? No, defaults to -1).
+
+        // Let's wake:
+        // - RoomID == -1 (Global/Corridor entities)
+        // - RoomID == currentRoomIndex
+        // - RoomID == connected neighbors
+
+        const activeRoomIDs = new Set([-1]);
+        if (currentRoomIndex !== -1) {
+            activeRoomIDs.add(currentRoomIndex);
+
+            // Add neighbors (connected via doors)
+            // We need a graph of rooms. Map.connectRooms connects them.
+            // But we didn't store the graph explicitly.
+            // Hack: Distance check? Or just wake ALL for now to test?
+
+            // Simpler: Just wake current room. Neighbors will wake when we enter them.
+            // Risk: Shooting into next room.
+            // Fix: Wake rooms connected by doors in current room tracking?
+            // "r.doors" link to Door entities. Door entities don't know "target room".
+
+            // Let's stick to Current Room Only for now (plus Global). 
+            // If user shoots into next room, bullets are global, so they travel.
+            // Enemies inside next room won't move until player enters. fair enough.
+        }
+
+        this.entities.forEach(e => {
+            if (e.alwaysUpdate) {
+                e.isActive = true;
+                return;
+            }
+            if (activeRoomIDs.has(e.roomID)) {
+                e.isActive = true;
+            } else {
+                e.isActive = false;
+            }
+        });
+
+        // 3. Trigger & Clear Logic (Original checkRoomStatus)
+        if (currentRoom) {
+            this.handleRoomLogic(currentRoom);
+        }
+    }
+
+    handleRoomLogic(currentRoom) {
         // TRIGGER LOGIC
-        if (currentRoom && !currentRoom.triggered && !currentRoom.cleared) {
-            // Check if player is overlapping any door (Safety delay)
+        if (!currentRoom.triggered && !currentRoom.cleared) {
+            // Check door overlap (Safety)
             const stuckInDoor = currentRoom.doors.some(d => {
-                // AABB Check (Player radius approx)
-                const pad = 10; // Grace margin
+                const pad = 10;
                 return (this.player.x + this.player.radius > d.x + pad &&
                     this.player.x - this.player.radius < d.x + d.width - pad &&
                     this.player.y + this.player.radius > d.y + pad &&
                     this.player.y - this.player.radius < d.y + d.height - pad);
             });
 
-            if (stuckInDoor) {
-                // console.log("Waiting for player to clear door...");
-                return;
-            }
-
+            if (stuckInDoor) return;
 
             // Enter Room Event
-            // console.warn(`Entering Room! Enemies Configured: ${currentRoom.enemiesConfig.length}`);
             currentRoom.triggered = true;
             this.activeRoom = currentRoom;
 
-            // Trigger Exit Door if in Exit Room
-            if (currentRoom.isExit && this.exitDoor) {
-                this.exitDoor.open();
-                console.log("Exit Trap Door Opened!");
-            }
+            // Trigger Exit Door
+            if (currentRoom.isExit && this.exitDoor) this.exitDoor.open();
 
             // Lock Doors
             currentRoom.doors.forEach(d => d.lock());
 
             // Spawn Enemies
             currentRoom.enemiesConfig.forEach(cfg => {
+                let e;
+                const roomIndex = this.map.rooms.indexOf(currentRoom);
                 if (cfg.type === Spawner) {
-                    // Spawner usually spawns others.
-                    // Spawner argument is (game, x, y, enemyType, count)
-                    // But here I pushed { type: Spawner }
-                    // I need to be careful about Spawner constructor arguments.
-                    // Previous logic: new Spawner(game, ex, ey, SmartEnemy, 1)
-                    // I should have stored the specific arguments or handle it here.
-                    // Let's assume standard handling or custom based on type.
-                    this.addEntity(new Spawner(this.game, cfg.x, cfg.y, SmartEnemy, 1));
+                    e = new Spawner(this.game, cfg.x, cfg.y, SmartEnemy, 1);
                 } else {
-                    this.addEntity(new cfg.type(this.game, cfg.x, cfg.y));
+                    e = new cfg.type(this.game, cfg.x, cfg.y);
                 }
+                e.roomID = roomIndex;
+                this.addEntity(e);
             });
-
-            // console.warn(`Entities after spawn: ${this.entities.length}`);
         }
 
         // CLEAR LOGIC
-        if (this.activeRoom) {
-            // Check if enemies are alive
-            const enemiesAlive = this.entities.some(e => e instanceof Enemy && !e.markedForDeletion && !(e instanceof Spawner));
-            // Note: Spawner itself counts as Entity? Spawner extends Entity. But isEnemy?
-            // Enemy.js extends Entity.
-            // Spawner extends Entity. Spawner is NOT Enemy instance (unless Spawner extends Enemy).
-            // Check Spawner.js: "export default class Spawner extends Entity"
-            // So Spawner is NOT Enemy.
-            // But we want to kill spawned enemies.
-            // Wait, if I check GLOBAL enemies, I might count enemies from other rooms?
-            // "Spawn on Entry" means ONLY current room enemies exist! 
-            // (Unless enemies followed from elsewhere? But doors were locked).
+        if (this.activeRoom === currentRoom) {
+            const enemiesAlive = this.entities.some(e =>
+                e instanceof Enemy &&
+                !e.markedForDeletion &&
+                e.roomID === this.map.rooms.indexOf(currentRoom)
+            );
 
             if (!enemiesAlive) {
-                // Check why?
-                // const enemyCount = this.entities.filter(e => e instanceof Enemy).length;
-                // console.warn(`Room Cleared Check: Enemies Alive? ${enemiesAlive}. Total Entities: ${this.entities.length}`);
                 console.log("Room Cleared!");
                 this.activeRoom.cleared = true;
                 this.activeRoom.doors.forEach(d => d.unlock());
                 this.activeRoom = null;
-                // Add Notification / Sound?
+                if (!this.player) return;
+                const dx = this.player.x - this.map.endPoint.x;
+                const dy = this.player.y - this.map.endPoint.y;
+                if (Math.sqrt(dx * dx + dy * dy) < 40) { // Interaction Radius
+                    this.nextLevel();
+                }
             }
         }
     }

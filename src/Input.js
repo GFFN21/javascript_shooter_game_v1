@@ -13,8 +13,13 @@ export default class Input {
 
         window.addEventListener('mousemove', e => {
             const rect = this.game.canvas.getBoundingClientRect();
-            this.mouse.x = e.clientX - rect.left;
-            this.mouse.y = e.clientY - rect.top;
+            // Calculate scale factor (CSS size vs Logical size)
+            const scaleX = this.game.canvas.width / rect.width;
+            const scaleY = this.game.canvas.height / rect.height;
+
+            // Remap
+            this.mouse.x = (e.clientX - rect.left) * scaleX;
+            this.mouse.y = (e.clientY - rect.top) * scaleY;
         });
 
         window.addEventListener('mousedown', () => {

@@ -38,6 +38,7 @@ export default class Game {
 
         // Bind loop
         this.loop = this.loop.bind(this);
+        this.animationFrameId = null;
 
         // Show Save Selection instead of starting immediately
         this.ui.showSaveSelection();
@@ -89,9 +90,35 @@ export default class Game {
         SaveManager.saveSlot(this.currentSlotId, data);
     }
 
+    resize() {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // Calculate Scale to Fit
+        const scaleX = windowWidth / this.width;
+        const scaleY = windowHeight / this.height;
+        const scale = Math.min(scaleX, scaleY);
+
+        // Apply CSS Size
+        this.canvas.style.width = `${this.width * scale}px`;
+        this.canvas.style.height = `${this.height * scale}px`;
+
+        // Center Canvas
+        this.canvas.style.display = 'block';
+        this.canvas.style.marginLeft = 'auto';
+        this.canvas.style.marginRight = 'auto';
+
+        // Vertical Centering (Optional, usually desirable)
+        const topMargin = (windowHeight - (this.height * scale)) / 2;
+        this.canvas.style.marginTop = `${topMargin}px`;
+
+        console.log(`Resized Game: Scale ${scale.toFixed(2)}`);
+    }
+
     start() {
+        if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         this.lastTime = performance.now();
-        requestAnimationFrame(this.loop);
+        this.animationFrameId = requestAnimationFrame(this.loop);
     }
 
     restart() {
@@ -160,7 +187,7 @@ export default class Game {
             });
         }
 
-        requestAnimationFrame(this.loop);
+        this.animationFrameId = requestAnimationFrame(this.loop);
     }
 
     update(dt) {

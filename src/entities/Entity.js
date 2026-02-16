@@ -12,6 +12,11 @@ export default class Entity {
         this.type = CONFIG.COLLISION_TYPES.NONE;
         this.markedForDeletion = false;
 
+        // Hybrid Optimization
+        this.roomID = -1; // -1 = Corridor/Global
+        this.isActive = true; // Default to true, World will cull
+        this.alwaysUpdate = false; // Player/Projectiles override this
+
         this.flashTimer = 0;
 
         // Physics

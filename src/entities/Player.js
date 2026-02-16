@@ -8,6 +8,7 @@ export default class Player extends Entity {
         // Initial Stats from Config
         this.baseStats = CONFIG.PLAYER;
         this.type = CONFIG.COLLISION_TYPES.PLAYER;
+        this.alwaysUpdate = true;
         this.applySkills();
 
         this.shootTimer = 0;

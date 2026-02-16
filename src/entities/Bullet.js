@@ -13,6 +13,7 @@ export default class Bullet extends Entity {
         this.life = 2.0;
         this.markedForDeletion = false;
         this.bounces = 0; // Number of times it can bounce
+        this.alwaysUpdate = true; // Bullets fly across rooms
     }
 
     update(dt) {
