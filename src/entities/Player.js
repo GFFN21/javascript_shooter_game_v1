@@ -27,8 +27,11 @@ export default class Player extends Entity {
         this.equipment = new Array(4).fill(null);
 
         // Weapons (3 slots: Primary, Secondary, Sidearm)
-        this.weapons = new Array(3).fill(null);
+        this.weapons = [null, null, null]; // 3 Slots
         this.currentWeaponIndex = 0;
+        this.weapons[0] = { name: 'Pistol', ...CONFIG.WEAPONS.PISTOL }; // Starter
+
+        this.switchWeaponTimer = 0;
 
         this.money = 0;
 
@@ -175,41 +178,50 @@ export default class Player extends Entity {
         }
     }
 
-    updateMovement(dt) {
-        // --- DASH TRIGGER ---
-        if (this.game.input.isDown('Space') && this.dashCooldownTimer <= 0 && !this.isDashing) {
-            this.isDashing = true;
-            this.dashTimer = this.dashDuration;
-            this.dashCooldownTimer = this.dashCooldown;
+    startDash() {
+        this.isDashing = true;
+        this.dashTimer = this.dashDuration;
+        this.dashCooldownTimer = this.dashCooldown;
 
-            // Determine Dash Direction
-            // Use current input if moving, otherwise aim towards mouse
-            let dx = 0;
-            let dy = 0;
-            if (this.game.input.isDown('KeyW')) dy -= 1;
-            if (this.game.input.isDown('KeyS')) dy += 1;
-            if (this.game.input.isDown('KeyA')) dx -= 1;
-            if (this.game.input.isDown('KeyD')) dx += 1;
+        // Determine Dash Direction
+        const movement = this.game.input.getMovement();
+        let dx = movement.x;
+        let dy = movement.y;
 
-            if (dx === 0 && dy === 0) {
-                // Dash towards mouse
-                const worldPos = this.game.camera.screenToWorld(this.game.input.mouse.x, this.game.input.mouse.y);
-                const angle = Math.atan2(worldPos.y - this.y, worldPos.x - this.x);
-                dx = Math.cos(angle);
-                dy = Math.sin(angle);
+        // If no input, dash towards mouse? Or forward? 
+        // Current logic: normalized vector.
+        // If movement is 0,0, maybe dash towards mouse?
+        if (dx === 0 && dy === 0) {
+            const worldPos = this.game.camera.screenToWorld(this.game.input.mouse.x, this.game.input.mouse.y);
+            const dist = Math.sqrt(Math.pow(worldPos.x - this.x, 2) + Math.pow(worldPos.y - this.y, 2));
+            // Avoid division by zero if mouse is exactly on player
+            if (dist > 0) {
+                dx = (worldPos.x - this.x) / dist;
+                dy = (worldPos.y - this.y) / dist;
             } else {
-                // Normalize input
-                const len = Math.sqrt(dx * dx + dy * dy);
-                dx /= len;
-                dy /= len;
+                // Default to dashing right if no input and mouse on player
+                dx = 1;
+                dy = 0;
             }
-            this.dashDir = { x: dx, y: dy };
-
-            // Initial burst particles
-            this.game.world.spawnParticles(this.x, this.y, '#00ffff', 10);
         }
 
-        // --- MOVEMENT ---
+        this.dashDir = { x: dx, y: dy };
+        this.game.world.spawnParticles(this.x, this.y, '#0ff', 10);
+    }
+
+    updateMovement(dt) {
+        // Dashing
+        if (this.game.input.isDashing() && this.dashCooldownTimer <= 0 && !this.isDashing) {
+            this.startDash();
+        }
+
+        // Weapon Switching
+        if (this.game.input.isSwitchingWeapon() && this.switchWeaponTimer <= 0) {
+            this.switchWeapon();
+            this.switchWeaponTimer = 0.2; // Debounce
+        }
+        if (this.switchWeaponTimer > 0) this.switchWeaponTimer -= dt;
+
         let moveX = 0;
         let moveY = 0;
 
@@ -231,21 +243,9 @@ export default class Player extends Entity {
             }
         } else {
             // Normal Movement
-            let dx = 0;
-            let dy = 0;
-
-            if (this.game.input.isDown('KeyW')) dy -= 1;
-            if (this.game.input.isDown('KeyS')) dy += 1;
-            if (this.game.input.isDown('KeyA')) dx -= 1;
-            if (this.game.input.isDown('KeyD')) dx += 1;
-
-            if (dx !== 0 || dy !== 0) {
-                const len = Math.sqrt(dx * dx + dy * dy);
-                dx /= len;
-                dy /= len;
-            }
-            moveX = dx * this.speed * dt;
-            moveY = dy * this.speed * dt;
+            const movement = this.game.input.getMovement();
+            moveX = movement.x * this.speed * dt;
+            moveY = movement.y * this.speed * dt;
         }
 
         // Apply Movement & Collision
@@ -265,9 +265,10 @@ export default class Player extends Entity {
             }
         }
 
-        // Shooting (Disabled while dashing? Or allowed? Let's allow it for style)
-        if (this.game.input.mouse.down && this.shootTimer <= 0) {
+        // Shooting
+        if (this.game.input.isShooting() && this.shootTimer <= 0) {
             this.shoot();
+            this.shootTimer = this.fireRate;
         }
     }
 
@@ -283,19 +284,14 @@ export default class Player extends Entity {
 
     shoot() {
         // console.log("Shoot Called");
-        const rect = this.game.canvas.getBoundingClientRect();
-        // Mouse relative to camera view
-        // The mouse input logic in Input.js gives coordinates relative to canvas 0,0.
-        // But our game world has a Camera.
-        // If camera allows scrolling, we need to add camera position.
-        // Wait, Input.js returns clientX - rect.left. This is screen space.
-        // World objects are in World space.
-        // Camera logic: ctx.translate(-camera.x, -camera.y).
-        // So MouseWorld = MouseScreen + Camera.
+        const aimDir = this.game.input.getAimVector(this.x, this.y);
 
-        const worldPos = this.game.camera.screenToWorld(this.game.input.mouse.x, this.game.input.mouse.y);
-        const mx = worldPos.x;
-        const my = worldPos.y;
+        // Target point (for bullets that need exact target, usually just Direction is enough)
+        // Calculating a fake target point far away based on vector
+        const mx = this.x + aimDir.x * 1000;
+        const my = this.y + aimDir.y * 1000;
+
+        // Get Current Weapon Stats
 
         // Get Current Weapon Stats
         const weapon = this.weapons[this.currentWeaponIndex];
@@ -314,14 +310,20 @@ export default class Player extends Entity {
         };
 
         if (weapon) {
-            stats = weapon.stats;
+            const w = weapon.stats || weapon;
+            stats = {
+                name: w.name || 'Unknown',
+                damage: w.damage || 1,
+                cooldown: w.fireRate || w.cooldown || 0.5,
+                bulletSpeed: w.speed || w.bulletSpeed || 400,
+                count: w.count || 1,
+                spread: w.spread || 0,
+                color: w.color || '#fff',
+                life: w.life || w.range,
+                knockback: w.knockback || 200,
+                isMelee: w.isMelee || false
+            };
         }
-
-        // if (stats.isMelee) {
-        //      console.warn("Player: Melee Attack!");
-        // } else {
-        //      console.warn(`Player: Shooting ${stats.name}`);
-        // }
 
         this.shootTimer = stats.cooldown;
 

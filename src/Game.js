@@ -91,28 +91,30 @@ export default class Game {
     }
 
     resize() {
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
+        const targetHeight = 720; // Fixed Vertical Resolution
+        const aspect = window.innerWidth / window.innerHeight;
 
-        // Calculate Scale to Fit
-        const scaleX = windowWidth / this.width;
-        const scaleY = windowHeight / this.height;
-        const scale = Math.min(scaleX, scaleY);
+        // Dynamic Width based on Aspect Ratio
+        this.width = Math.round(targetHeight * aspect);
+        this.height = targetHeight;
 
-        // Apply CSS Size
-        this.canvas.style.width = `${this.width * scale}px`;
-        this.canvas.style.height = `${this.height * scale}px`;
+        // Update Canvas Logical Size
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
 
-        // Center Canvas
-        this.canvas.style.display = 'block';
-        this.canvas.style.marginLeft = 'auto';
-        this.canvas.style.marginRight = 'auto';
+        // CSS: Fill Window
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        this.canvas.style.marginTop = '0';
+        this.canvas.style.marginLeft = '0'; // Reset centering
 
-        // Vertical Centering (Optional, usually desirable)
-        const topMargin = (windowHeight - (this.height * scale)) / 2;
-        this.canvas.style.marginTop = `${topMargin}px`;
+        // Update Camera dimensions if needed (Camera reads game.width/height usually)
+        if (this.camera) {
+            this.camera.width = this.width;
+            this.camera.height = this.height;
+        }
 
-        console.log(`Resized Game: Scale ${scale.toFixed(2)}`);
+        console.log(`Resized Game: ${this.width}x${this.height} (Aspect: ${aspect.toFixed(2)})`);
     }
 
     start() {

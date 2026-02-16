@@ -2,13 +2,7 @@ import Game from './Game.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
-
-    // Fixed Logical Resolution (HD 720p)
-    const GAME_WIDTH = 1280;
-    const GAME_HEIGHT = 720;
-
-    canvas.width = GAME_WIDTH;
-    canvas.height = GAME_HEIGHT;
+    // Canvas size will be set by Game.resize()
 
     const game = new Game(canvas);
 

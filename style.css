@@ -568,6 +568,26 @@ canvas {
 
 .delete-slot-btn:hover {
     background: #ff4444;
-    color: #fff;
-    opacity: 1;
+
+/* --- Mobile Adaptation --- */
+body.mobile #weapon-hud {
+    bottom: auto;
+    top: 60px; /* Below the Stats/Score area */
+    right: 20px;
+    flex-direction: column; /* Stack vertically to save horizontal space? Or keep horizontal? */
+    /* Let's keep horizontal for now, but move it up */
+}
+
+body.mobile #hud {
+    padding: 10px;
+    /* Safe Area for notch */
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+}
+
+body.mobile .slot {
+    /* Make weapon slots slightly smaller? */
+    width: 50px;
+    height: 50px;
 }
