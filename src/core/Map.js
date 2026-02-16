@@ -11,7 +11,7 @@ export default class Map {
         // Tileset Loading
         this.tileset = new Image();
         // Add timestamp to force reload
-        this.tileset.src = 'mayan_tileset.png?v=' + Date.now();
+        this.tileset.src = 'assets/tilesets/mayan_tileset.png?v=' + Date.now();
         this.tilesetLoaded = false;
         this.tileset.onload = () => {
             this.tilesetLoaded = true;

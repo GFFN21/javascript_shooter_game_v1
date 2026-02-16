@@ -1,9 +1,9 @@
 import Input from './Input.js';
 import Camera from './Camera.js';
 import World from './World.js';
-import UIManager from './ui/UIManager.js';
-import SaveManager from './utils/SaveManager.js';
-import DebugPanel from './ui/DebugPanel.js';
+import UIManager from '../ui/UIManager.js';
+import SaveManager from '../utils/SaveManager.js';
+import DebugPanel from '../ui/DebugPanel.js';
 
 export default class Game {
     constructor(canvas) {

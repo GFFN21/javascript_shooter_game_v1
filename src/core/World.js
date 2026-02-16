@@ -1,23 +1,23 @@
 import Map from './Map.js?v=2';
-import Enemy from './entities/Enemy.js';
-import Walker from './entities/Walker.js';
-import SmartEnemy from './entities/SmartEnemy.js';
-import StealthEnemy from './entities/StealthEnemy.js';
-import Player from './entities/Player.js';
-import Particle from './entities/Particle.js';
-import Spawner from './entities/Spawner.js';
-import Door from './entities/Door.js';
-import HealthPack from './entities/HealthPack.js';
-import RapidFireEnemy from './entities/RapidFireEnemy.js';
-import ShotgunEnemy from './entities/ShotgunEnemy.js';
-import HeavyShotgunEnemy from './entities/HeavyShotgunEnemy.js';
-import Coin from './entities/Coin.js';
-import WeaponItem from './entities/WeaponItem.js';
-import Bullet from './entities/Bullet.js';
-import Altar from './entities/Altar.js';
-import TrapDoor from './entities/TrapDoor.js'; // Replacement for Portal
-import SpatialHash from './utils/SpatialHash.js';
-import { CONFIG } from './Config.js';
+import Enemy from '../entities/Enemy.js';
+import Walker from '../entities/Walker.js';
+import SmartEnemy from '../entities/SmartEnemy.js';
+import StealthEnemy from '../entities/StealthEnemy.js';
+import Player from '../entities/Player.js';
+import Particle from '../entities/Particle.js';
+import Spawner from '../entities/Spawner.js';
+import Door from '../entities/Door.js';
+import HealthPack from '../entities/HealthPack.js';
+import RapidFireEnemy from '../entities/RapidFireEnemy.js';
+import ShotgunEnemy from '../entities/ShotgunEnemy.js';
+import HeavyShotgunEnemy from '../entities/HeavyShotgunEnemy.js';
+import Coin from '../entities/Coin.js';
+import WeaponItem from '../entities/WeaponItem.js';
+import Bullet from '../entities/Bullet.js';
+import Altar from '../entities/Altar.js';
+import TrapDoor from '../entities/TrapDoor.js'; // Replacement for Portal
+import SpatialHash from '../utils/SpatialHash.js';
+import { CONFIG } from '../Config.js';
 
 export default class World {
     constructor(game, savedInventory = null) {

@@ -4,7 +4,7 @@ export default class Portal extends Entity {
     constructor(game, x, y) {
         super(game, x, y);
         this.image = new Image();
-        this.image.src = 'src/mayan_portal.png?v=' + Date.now();
+        this.image.src = 'assets/sprites/mayan_portal.png?v=' + Date.now();
         this.loaded = false;
         this.image.onload = () => {
             this.loaded = true;

@@ -6,7 +6,7 @@ export default class TrapDoor extends Entity {
         super(game, x, y);
         this.type = CONFIG.COLLISION_TYPES.PORTAL;
         this.image = new Image();
-        this.image.src = 'src/trap_door_sheet.png';
+        this.image.src = 'assets/sprites/trap_door_sheet.png';
         this.loaded = false;
         this.image.onload = () => {
             this.loaded = true;

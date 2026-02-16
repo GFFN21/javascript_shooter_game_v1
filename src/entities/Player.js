@@ -37,7 +37,7 @@ export default class Player extends Entity {
 
         // Sprite
         this.sprite = new Image();
-        this.sprite.src = 'src/player_spritesheet_v2.png';
+        this.sprite.src = 'assets/sprites/player_spritesheet_v2.png';
 
         // Animation State
         this.frameWidth = 64;

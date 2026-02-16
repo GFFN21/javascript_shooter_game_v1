@@ -6,7 +6,7 @@ export default class Altar extends Entity {
         super(game, x, y);
         this.type = CONFIG.COLLISION_TYPES.PORTAL;
         this.image = new Image();
-        this.image.src = "src/mayan_altar.png?v=" + Date.now();
+        this.image.src = "assets/tilesets/mayan_altar.png?v=" + Date.now();
 
         this.width = 180; // 4.5 Tiles
         this.height = 180;

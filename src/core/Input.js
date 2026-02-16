@@ -1,5 +1,5 @@
-import TouchControls from './ui/TouchControls.js';
-import { Platform } from './Platform.js';
+import TouchControls from '../ui/TouchControls.js';
+import { Platform } from '../Platform.js';
 
 export default class Input {
     constructor(game) {
