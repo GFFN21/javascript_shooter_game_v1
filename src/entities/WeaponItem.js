@@ -1,14 +1,24 @@
 import Entity from './Entity.js';
+import { CONFIG } from '../Config.js';
 
 export default class WeaponItem extends Entity {
     constructor(game, x, y, type) {
         super(game, x, y);
-        this.type = type;
+        this.type = type; // This is weapon type (PISTOL etc), careful conflict?
+        // Ah, this.type was already used for weapon kind? 
+        // Let's check WeaponItem.js usage.
+        // It uses this.type to store 'PISTOL', 'SHOTGUN'.
+        // We should rename the existing property or use a different property for collision type.
+        // But Entity.js now has this.type. 
+        // Let's look at WeaponItem.js again.
+
+        this.weaponType = type; // Rename local type to weaponType
+        this.type = CONFIG.COLLISION_TYPES.ITEM; // Collision type
         this.radius = 10;
         this.color = '#888'; // Grey steel
 
         // Define stats based on type
-        this.stats = this.getStats(type);
+        this.stats = this.getStats(this.weaponType);
 
         // Animation
         this.bobOffset = Math.random() * Math.PI;

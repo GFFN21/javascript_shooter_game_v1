@@ -1,3 +1,5 @@
+import { CONFIG } from '../Config.js';
+
 export default class Entity {
     get sortY() {
         return this.y;
@@ -7,7 +9,9 @@ export default class Entity {
         this.game = game;
         this.x = x;
         this.y = y;
+        this.type = CONFIG.COLLISION_TYPES.NONE;
         this.markedForDeletion = false;
+
         this.flashTimer = 0;
 
         // Physics

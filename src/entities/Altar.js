@@ -1,8 +1,10 @@
 import Entity from './Entity.js';
+import { CONFIG } from '../Config.js';
 
 export default class Altar extends Entity {
     constructor(game, x, y) {
         super(game, x, y);
+        this.type = CONFIG.COLLISION_TYPES.PORTAL;
         this.image = new Image();
         this.image.src = "src/mayan_altar.png?v=" + Date.now();
 

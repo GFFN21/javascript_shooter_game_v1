@@ -1,32 +1,40 @@
 import Entity from './Entity.js';
+import { CONFIG } from '../Config.js';
 
 export default class Particle extends Entity {
-    constructor(game, x, y, color) {
+    constructor(game, x, y, options = {}) {
         super(game, x, y);
-        this.color = color;
-        this.size = Math.random() * 3 + 1;
-        this.speed = Math.random() * 100 + 50;
-        const angle = Math.random() * Math.PI * 2;
-        this.dx = Math.cos(angle);
-        this.dy = Math.sin(angle);
-        this.life = 0.5; // seconds
+        this.dx = (Math.random() - 0.5) * (options.speed || 100);
+        this.dy = (Math.random() - 0.5) * (options.speed || 100);
+        this.life = options.life || 0.5;
+        this.maxLife = this.life;
+        this.color = options.color || '#fff';
+        this.size = options.size || 3;
+        this.alpha = 1;
+
+        // Particles don't collide
+        this.type = CONFIG.COLLISION_TYPES.NONE;
     }
 
     update(dt) {
-        this.x += this.dx * this.speed * dt;
-        this.y += this.dy * this.speed * dt;
+        this.x += this.dx * dt;
+        this.y += this.dy * dt;
         this.life -= dt;
-        this.size -= dt * 2;
 
-        if (this.life <= 0 || this.size <= 0) {
+        this.alpha = this.life / this.maxLife;
+
+        if (this.life <= 0) {
             this.markedForDeletion = true;
         }
     }
 
     render(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, Math.max(0, this.size), 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
     }
 }

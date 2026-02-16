@@ -16,6 +16,8 @@ import WeaponItem from './entities/WeaponItem.js';
 import Bullet from './entities/Bullet.js';
 import Altar from './entities/Altar.js';
 import TrapDoor from './entities/TrapDoor.js'; // Replacement for Portal
+import SpatialHash from './utils/SpatialHash.js';
+import { CONFIG } from './Config.js';
 
 export default class World {
     constructor(game, savedInventory = null) {
@@ -25,6 +27,10 @@ export default class World {
         this.entities = [];
         this.particles = [];
         this.player = null;
+        this.spatialHash = new SpatialHash(CONFIG.SPATIAL_HASH.CELL_SIZE);
+
+        // Debug Stats
+        this.collisionChecks = 0;
 
         this.init();
     }
@@ -349,25 +355,86 @@ export default class World {
     }
 
     checkCollisions() {
+        this.collisionChecks = 0;
+
+        // 1. Clear and Rebuild Spatial Hash
+        this.spatialHash.clear();
+
+        for (const e of this.entities) {
+            if (e.markedForDeletion) continue;
+            // Skip particles or non-colliding items to save time?
+            // Actually, we need to insert everything that CAN be collided WITH.
+            // Bullet vs Enemy: Bullet moves, Enemy is target.
+            // So Enemies must be in hash.
+            // Player must be in hash.
+            // Bullet? Bullet checks collisions. Does anything check Bullet? 
+            // Only if we have bullet-bullet collision (rare).
+            // So we technically don't need to insert Bullets if they are only "seekers".
+            // But for simplicity, let's insert everything except NONE.
+            if (e.type !== CONFIG.COLLISION_TYPES.NONE) {
+                this.spatialHash.insert(e);
+            }
+        }
+
+        // 2. Query Collisions
         for (let i = 0; i < this.entities.length; i++) {
             const a = this.entities[i];
             if (a.markedForDeletion) continue;
 
-            // Specific: Bullet Wall Physics
+            // Specific: Bullet Wall Physics (unchanged)
             if (a.constructor.name === 'Bullet') {
                 this.checkBulletWallCollision(a);
             }
 
-            // Entity vs Entity
-            for (let j = i + 1; j < this.entities.length; j++) {
-                const b = this.entities[j];
+            // Entity vs Entity (Optimized)
+            // Only check if 'a' can collide (e.g. Bullet, Player)
+            // If 'a' is a static item, it doesn't "seek" collisions.
+            // But let's keep it generic for now.
+
+            const candidates = this.spatialHash.query(a);
+            for (const b of candidates) {
+                if (a === b) continue; // Self check
                 if (b.markedForDeletion) continue;
 
-                // Quick Distance Check
+                this.collisionChecks++;
+
                 if (this.checkCircleCollision(a, b)) {
-                    // Two-way dispatch
                     if (a.onCollision) a.onCollision(b);
-                    if (b.onCollision) b.onCollision(a);
+                    // We don't force b.onCollision(a) here because b will have its own turn loop?
+                    // Actually b might be later in 'this.entities'.
+                    // So if we do a.onCollision(b), and b.onCollision(a), we cover interaction.
+                    // If we WAIT for b's turn, 'a' might be dead.
+                    // So we SHOULD do both here?
+                    // If we do both here, then when we get to B, we do both again -> Quadruple dispatch?
+                    // No. B query A.
+                    // Verification:
+                    // Loop A:
+                    //   Query -> B.
+                    //   Collide(A, B) -> A.hit(B), B.hit(A).
+                    // Loop B:
+                    //   Query -> A.
+                    //   Collide(B, A) -> B.hit(A), A.hit(B).
+                    // Result: Double execution.
+                    // FIX: Only resolve if a.id < b.id ? Or just resolve one-way?
+                    // Entity.js doesn't have IDs.
+                    // Simple fix: Only process if a index < b index?
+                    // But we don't know b's index in spatial hash result.
+
+                    // Pragmatic approach:
+                    // Most collisions are One-Way (Bullet -> Enemy).
+                    // Bullet.onCollision(Enemy) -> Enemy.takeDamage.
+                    // Enemy.onCollision(Bullet) -> (usually nothing).
+
+                    // So redundancy might be okay.
+                    // But let's try to minimize.
+                    // Actually, if we just call a.onCollision(b), that defines "A hitting B".
+                    // When B loops, it calls b.onCollision(a) ("B hitting A").
+                    // This creates the symmetry without double-calling per pair.
+                    // Existing code: "if (a.onCollision) a.onCollision(b); if (b.onCollision) b.onCollision(a);"
+                    // It explicitly called BOTH.
+                    // So if I change to just a.onCollision(b), I restore natural order.
+
+                    if (a.onCollision) a.onCollision(b);
                 }
             }
         }
@@ -475,21 +542,30 @@ export default class World {
     }
 
     render(ctx) {
+        // Measure Floor
+        const t0 = performance.now();
         this.map.renderFloor(ctx);
 
-        // Sort entities by Y
+        // Measure Entities (Sort + Draw)
+        const t1 = performance.now();
         this.entities.sort((a, b) => a.sortY - b.sortY);
         this.entities.forEach(e => e.render(ctx));
 
-        // Draw Particles (on top of entities but below walls? or on top of everything?)
-        // Usually particles are on top of world.
+        // Measure Particles
+        const t2 = performance.now();
         this.particles.forEach(p => p.render(ctx));
 
-        // Draw Walls on top (Simple 2.5D hack)
-        // Note: This makes walls always appear "above" entities (occluding them).
-        // If an entity is "in front" (South) of a wall, it should be drawn AFTER the wall.
-        // But renderWalls draws ALL walls.
-        // We'll trust the plan for now. Improvement: Y-sort walls.
+        // Measure Walls
+        const t3 = performance.now();
         this.map.renderWalls(ctx);
+        const t4 = performance.now();
+
+        // Store Stats for Game to read
+        this.renderStats = {
+            floor: t1 - t0,
+            entities: t2 - t1,
+            particles: t3 - t2,
+            walls: t4 - t3
+        };
     }
 }

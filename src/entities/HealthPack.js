@@ -1,8 +1,10 @@
 import Entity from './Entity.js';
+import { CONFIG } from '../Config.js';
 
 export default class HealthPack extends Entity {
     constructor(game, x, y) {
         super(game, x, y);
+        this.type = CONFIG.COLLISION_TYPES.ITEM;
         this.radius = 10;
         this.healAmount = 1;
         this.floatOffset = 0;

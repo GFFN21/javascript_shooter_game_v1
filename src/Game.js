@@ -3,6 +3,7 @@ import Camera from './Camera.js';
 import World from './World.js';
 import UIManager from './ui/UIManager.js';
 import SaveManager from './utils/SaveManager.js';
+import DebugPanel from './ui/DebugPanel.js';
 
 export default class Game {
     constructor(canvas) {
@@ -33,6 +34,7 @@ export default class Game {
         this.camera = new Camera(this, 0, 0);
         this.world = new World(this);
         this.ui = new UIManager(this);
+        this.debugPanel = new DebugPanel(this);
 
         // Bind loop
         this.loop = this.loop.bind(this);
@@ -118,8 +120,7 @@ export default class Game {
     }
 
     loop(timestamp) {
-        // if (this.isGameOver) return; 
-
+        if (!this.lastTime) this.lastTime = timestamp;
         let deltaTime = (timestamp - this.lastTime) / 1000;
         this.lastTime = timestamp;
 
@@ -127,12 +128,38 @@ export default class Game {
 
         this.accumulatedTime += deltaTime;
 
+        // Measure Update
+        const startUpdate = performance.now();
         while (this.accumulatedTime > this.step) {
             this.update(this.step);
             this.accumulatedTime -= this.step;
         }
+        const endUpdate = performance.now();
 
+        // Measure Render
+        const startRender = performance.now();
         this.render();
+        const endRender = performance.now();
+
+        // Update Debug
+        if (this.debugPanel && this.debugPanel.visible) {
+            const rStats = this.world.renderStats || {};
+            this.debugPanel.update({
+                fps: 1 / deltaTime,
+                frameTime: deltaTime * 1000,
+                updateTime: endUpdate - startUpdate,
+                renderTime: endRender - startRender,
+                entityCount: this.world.entities.length,
+                particleCount: this.world.particles.length,
+                collisionChecks: this.world.collisionChecks,
+                // Breakdown
+                rFloor: rStats.floor || 0,
+                rEntities: rStats.entities || 0,
+                rParticles: rStats.particles || 0,
+                rWalls: rStats.walls || 0
+            });
+        }
+
         requestAnimationFrame(this.loop);
     }
 

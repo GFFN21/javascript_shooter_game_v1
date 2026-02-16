@@ -1,8 +1,10 @@
 import Entity from './Entity.js';
+import { CONFIG } from '../Config.js';
 
 export default class TrapDoor extends Entity {
     constructor(game, x, y) {
         super(game, x, y);
+        this.type = CONFIG.COLLISION_TYPES.PORTAL;
         this.image = new Image();
         this.image.src = 'src/trap_door_sheet.png';
         this.loaded = false;

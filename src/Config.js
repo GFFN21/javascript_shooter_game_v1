@@ -8,6 +8,21 @@ export const CONFIG = {
         PADDING: 1
     },
 
+    SPATIAL_HASH: {
+        CELL_SIZE: 80 // 2x Tile Size
+    },
+
+    // Collision Types
+    COLLISION_TYPES: {
+        NONE: 'none',
+        PLAYER: 'player',
+        ENEMY: 'enemy',
+        ITEM: 'item',
+        PROJECTILE: 'projectile',
+        PORTAL: 'portal',
+        WALL: 'wall'
+    },
+
     // Player Stats
     PLAYER: {
         HP: 3,

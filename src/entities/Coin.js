@@ -1,9 +1,11 @@
 import Entity from './Entity.js';
+import { CONFIG } from '../Config.js';
 
 export default class Coin extends Entity {
     constructor(game, x, y, value) {
         super(game, x, y);
         this.value = value;
+        this.type = CONFIG.COLLISION_TYPES.ITEM;
         this.radius = 8;
         this.color = '#FFD700'; // Gold
 

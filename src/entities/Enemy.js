@@ -12,6 +12,7 @@ export default class Enemy extends Entity {
     constructor(game, x, y, stats = CONFIG.ENEMIES.WALKER) {
         super(game, x, y);
         this.speed = stats.speed;
+        this.type = CONFIG.COLLISION_TYPES.ENEMY;
         this.radius = 15;
         this.hp = stats.hp;
         // this.mass = 2; // In Entity
