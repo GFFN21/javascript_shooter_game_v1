@@ -38,32 +38,39 @@ export const CONFIG = {
     WEAPONS: {
         PISTOL: {
             damage: 2,
-            fireRate: 0.4,
-            speed: 600,
+            cooldown: 0.4,
+            bulletSpeed: 600,
             spread: 0.05,
+            count: 1,
+            knockback: 200,
             color: '#ffaa00'
         },
         SHOTGUN: {
             damage: 1, // Per pellet
-            fireRate: 0.8,
-            speed: 550,
+            cooldown: 0.8,
+            bulletSpeed: 550,
             spread: 0.3, // Cone
             count: 5,
+            knockback: 200,
             color: '#ff8800'
         },
         HEAVY_SHOTGUN: {
             damage: 2,
-            fireRate: 1.2,
-            speed: 500,
+            cooldown: 1.2,
+            bulletSpeed: 500,
             spread: 0.4,
             count: 8,
+            knockback: 300,
             color: '#ff4400'
         },
         MELEE: { // Unarmed
             damage: 1,
-            fireRate: 1.0,
-            speed: 200,
-            range: 0.15, // Lifetime
+            cooldown: 1.0,
+            bulletSpeed: 200,
+            life: 0.15, // Lifetime
+            count: 1,
+            knockback: 600,
+            isMelee: true,
             color: '#ddd'
         }
     },

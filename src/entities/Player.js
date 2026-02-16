@@ -121,16 +121,6 @@ export default class Player extends Entity {
     update(dt) {
         super.update(dt);
 
-        // Weapon Switching (Arrow Keys)
-        if (this.game.input.isPressed('ArrowLeft')) {
-            this.currentWeaponIndex--;
-            if (this.currentWeaponIndex < 0) this.currentWeaponIndex = this.weapons.length - 1;
-        }
-        if (this.game.input.isPressed('ArrowRight')) {
-            this.currentWeaponIndex++;
-            if (this.currentWeaponIndex >= this.weapons.length) this.currentWeaponIndex = 0;
-        }
-
         this.updateMovement(dt);
 
         // Cooldowns
@@ -138,20 +128,13 @@ export default class Player extends Entity {
         if (this.dashCooldownTimer > 0) this.dashCooldownTimer -= dt;
         this.shootTimer -= dt;
 
-        // Shooting (Disabled while dashing? Or allowed? Let's allow it for style)
-        if (this.game.input.mouse.down && this.shootTimer <= 0) {
-            this.shoot();
-        }
-
         this.updateAnimation(dt);
     }
 
     updateAnimation(dt) {
-        // Face Mouse (8-way)
-        const worldPos = this.game.camera.screenToWorld(this.game.input.mouse.x, this.game.input.mouse.y);
-        const dx = worldPos.x - this.x;
-        const dy = worldPos.y - this.y;
-        const angle = Math.atan2(dy, dx);
+        // Face aim direction (8-way)
+        const aimDir = this.game.input.getAimVector(this.x, this.y);
+        const angle = Math.atan2(aimDir.y, aimDir.x);
 
         // Convert Angle (Radians) to 0-7 index (S, SE, E, NE, N, NW, W, SW)
         const deg = angle * (180 / Math.PI);
@@ -162,11 +145,8 @@ export default class Player extends Entity {
         };
         this.facing = map[sector] !== undefined ? map[sector] : 0;
 
-        // State Determination
-        const isMoving = (this.game.input.isDown('KeyW') || this.game.input.isDown('KeyS') ||
-            this.game.input.isDown('KeyA') || this.game.input.isDown('KeyD'));
-
-        this.state = isMoving ? 'run' : 'idle';
+        // State Determination (uses Input abstraction)
+        this.state = this.game.input.isMoving() ? 'run' : 'idle';
 
         // Animate
         const maxFrames = this.state === 'run' ? 8 : 4;
@@ -192,17 +172,10 @@ export default class Player extends Entity {
         // Current logic: normalized vector.
         // If movement is 0,0, maybe dash towards mouse?
         if (dx === 0 && dy === 0) {
-            const worldPos = this.game.camera.screenToWorld(this.game.input.mouse.x, this.game.input.mouse.y);
-            const dist = Math.sqrt(Math.pow(worldPos.x - this.x, 2) + Math.pow(worldPos.y - this.y, 2));
-            // Avoid division by zero if mouse is exactly on player
-            if (dist > 0) {
-                dx = (worldPos.x - this.x) / dist;
-                dy = (worldPos.y - this.y) / dist;
-            } else {
-                // Default to dashing right if no input and mouse on player
-                dx = 1;
-                dy = 0;
-            }
+            // No movement input — dash toward aim direction
+            const aimDir = this.game.input.getAimVector(this.x, this.y);
+            dx = aimDir.x;
+            dy = aimDir.y;
         }
 
         this.dashDir = { x: dx, y: dy };
@@ -217,7 +190,11 @@ export default class Player extends Entity {
 
         // Weapon Switching
         if (this.game.input.isSwitchingWeapon() && this.switchWeaponTimer <= 0) {
-            this.switchWeapon();
+            const dir = this.game.input.getSwitchWeaponDirection();
+            this.currentWeaponIndex += dir;
+            if (this.currentWeaponIndex < 0) this.currentWeaponIndex = this.weapons.length - 1;
+            if (this.currentWeaponIndex >= this.weapons.length) this.currentWeaponIndex = 0;
+            if (this.game.ui) this.game.ui.updateWeaponHUD();
             this.switchWeaponTimer = 0.2; // Debounce
         }
         if (this.switchWeaponTimer > 0) this.switchWeaponTimer -= dt;
@@ -268,7 +245,6 @@ export default class Player extends Entity {
         // Shooting
         if (this.game.input.isShooting() && this.shootTimer <= 0) {
             this.shoot();
-            this.shootTimer = this.fireRate;
         }
     }
 
@@ -292,11 +268,10 @@ export default class Player extends Entity {
         const my = this.y + aimDir.y * 1000;
 
         // Get Current Weapon Stats
-
-        // Get Current Weapon Stats
         const weapon = this.weapons[this.currentWeaponIndex];
 
-        let stats = {
+        // Fallback: unarmed melee
+        const FISTS = {
             name: 'Fists',
             damage: 1,
             cooldown: 0.5,
@@ -304,26 +279,12 @@ export default class Player extends Entity {
             count: 1,
             spread: 0,
             color: '#fff',
-            life: 0.15, // Short range (0.15 * 400 = 60px)
+            life: 0.15,
             knockback: 600,
             isMelee: true
         };
 
-        if (weapon) {
-            const w = weapon.stats || weapon;
-            stats = {
-                name: w.name || 'Unknown',
-                damage: w.damage || 1,
-                cooldown: w.fireRate || w.cooldown || 0.5,
-                bulletSpeed: w.speed || w.bulletSpeed || 400,
-                count: w.count || 1,
-                spread: w.spread || 0,
-                color: w.color || '#fff',
-                life: w.life || w.range,
-                knockback: w.knockback || 200,
-                isMelee: w.isMelee || false
-            };
-        }
+        const stats = weapon ? (weapon.stats || weapon) : FISTS;
 
         this.shootTimer = stats.cooldown;
 

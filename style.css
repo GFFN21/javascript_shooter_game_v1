@@ -568,26 +568,207 @@ canvas {
 
 .delete-slot-btn:hover {
     background: #ff4444;
+    color: #fff;
+    opacity: 1;
+}
 
-/* --- Mobile Adaptation --- */
+/* ============================================
+   MOBILE ADAPTATION (body.mobile class)
+   Applied via TouchControls.js when mobile detected
+   ============================================ */
+
 body.mobile #weapon-hud {
     bottom: auto;
-    top: 60px; /* Below the Stats/Score area */
+    top: 60px;
     right: 20px;
-    flex-direction: column; /* Stack vertically to save horizontal space? Or keep horizontal? */
-    /* Let's keep horizontal for now, but move it up */
+    flex-direction: column;
 }
 
 body.mobile #hud {
     padding: 10px;
-    /* Safe Area for notch */
     padding-top: max(10px, env(safe-area-inset-top));
     padding-left: max(10px, env(safe-area-inset-left));
     padding-right: max(10px, env(safe-area-inset-right));
 }
 
 body.mobile .slot {
-    /* Make weapon slots slightly smaller? */
     width: 50px;
     height: 50px;
+}
+
+/* Prevent browser gestures on game canvas */
+canvas {
+    touch-action: none;
+}
+
+/* ============================================
+   RESPONSIVE MENUS (viewport-based)
+   ============================================ */
+@media (max-width: 800px),
+(max-height: 600px) {
+
+    /* Inventory Screen */
+    #inventory-screen {
+        min-width: 90vw;
+        max-width: 95vw;
+        max-height: 90vh;
+        padding: 15px;
+        overflow-y: auto;
+    }
+
+    #inventory-screen h2 {
+        font-size: 20px;
+        margin-bottom: 15px;
+    }
+
+    #inventory-container {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .inv-col {
+        align-items: center;
+        font-size: 16px;
+    }
+
+    .inv-col h3 {
+        font-size: 16px;
+    }
+
+    .slot {
+        width: 45px;
+        height: 45px;
+    }
+
+    .hint {
+        font-size: 11px;
+    }
+
+    /* Skills Screen */
+    #skills-screen {
+        min-width: 90vw;
+        max-width: 95vw;
+        max-height: 90vh;
+        padding: 15px;
+    }
+
+    #skills-screen h2 {
+        font-size: 20px;
+        margin-bottom: 15px;
+    }
+
+    #skills-list {
+        grid-template-columns: 1fr;
+        max-height: 70vh;
+        gap: 15px;
+    }
+
+    .stat-category h3 {
+        font-size: 16px;
+    }
+
+    .skill-item {
+        padding: 12px;
+    }
+
+    .skill-name {
+        font-size: 16px;
+    }
+
+    .skill-desc {
+        font-size: 12px;
+    }
+
+    .buy-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    /* Abilities Screen */
+    #abilities-screen {
+        min-width: 90vw;
+        max-width: 95vw;
+        max-height: 90vh;
+        padding: 15px;
+    }
+
+    #abilities-screen h2 {
+        font-size: 20px;
+        margin-bottom: 15px;
+    }
+
+    #abilities-list {
+        max-height: 70vh;
+        gap: 12px;
+    }
+
+    /* Save Screen */
+    #save-screen h1 {
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+
+    #save-slots-container {
+        width: 90vw;
+        max-width: 400px;
+    }
+
+    .save-slot {
+        padding: 15px;
+    }
+
+    .save-slot-info h3 {
+        font-size: 16px;
+    }
+
+    .save-slot-info p {
+        font-size: 12px;
+    }
+
+    /* Game Over Screen */
+    #game-over-screen h1 {
+        font-size: 32px;
+    }
+
+    #restart-btn {
+        font-size: 18px;
+        padding: 8px 16px;
+    }
+
+    /* Modal adjustments */
+    .modal-content {
+        padding: 20px;
+        max-width: 90vw;
+    }
+
+    .modal-content h2 {
+        font-size: 18px;
+        margin-bottom: 20px;
+    }
+
+    .modal-buttons button {
+        padding: 8px 20px;
+        font-size: 16px;
+    }
+}
+
+/* Portrait mode - stack things more aggressively */
+@media (max-width: 600px) and (orientation: portrait) {
+    #inventory-container {
+        gap: 10px;
+    }
+
+    .grid-4x2 {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: auto;
+    }
+
+    .grid-2x2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .slot {
+        width: 40px;
+        height: 40px;
+    }
 }

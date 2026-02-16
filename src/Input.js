@@ -110,7 +110,18 @@ export default class Input {
     }
 
     isSwitchingWeapon() {
-        return this.isPressed('KeyQ') || (this.touchControls && this.touchControls.buttons.switchWeapon);
+        return this.isPressed('KeyQ') || this.isPressed('ArrowLeft') || this.isPressed('ArrowRight') || (this.touchControls && this.touchControls.buttons.switchWeapon);
+    }
+
+    getSwitchWeaponDirection() {
+        // Returns -1 for previous, +1 for next
+        if (this.isPressed('ArrowLeft')) return -1;
+        return 1; // ArrowRight, Q, touch button all cycle forward
+    }
+
+    isMoving() {
+        const m = this.getMovement();
+        return (m.x * m.x + m.y * m.y) > 0.01;
     }
 
     update() {
