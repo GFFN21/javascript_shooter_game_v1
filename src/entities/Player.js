@@ -26,8 +26,8 @@ export default class Player extends Entity {
         // Equipment (4 slots: Weapon, Armor, Accessory, etc.)
         this.equipment = new Array(4).fill(null);
 
-        // Weapons (3 slots: Primary, Secondary, Sidearm)
-        this.weapons = [null, null, null]; // 3 Slots
+        // Weapons (2 slots: Primary, Secondary)
+        this.weapons = [null, null]; // 2 Slots
         this.currentWeaponIndex = 0;
         this.weapons[0] = { name: 'Pistol', ...CONFIG.WEAPONS.PISTOL }; // Starter
 

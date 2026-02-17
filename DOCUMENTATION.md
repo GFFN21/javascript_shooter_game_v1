@@ -4,42 +4,30 @@
 
 ```breadcrumbs
 src/
-├── Game.js                # Entry point, Game Loop, State Management
-├── World.js               # Game Scene, Entity Manager, Collision Dispatcher
-├── Map.js                 # Level Generation (Roguelike), Tile Rendering
-├── Config.js              # Global constants, balance settings, assets
-├── Camera.js              # Viewport scrolling and following logic
-├── Input.js               # Keyboard/Mouse event listeners
 ├── main.js                # Bootstrapper
+├── Platform.js            # Device Detection
+├── Config.js              # Global constants, balance settings, assets
+├── core/                  # Core Engine
+│   ├── Game.js            # Entry point, Game Loop, State Management
+│   ├── World.js           # Game Scene, Entity Manager, Collision Dispatcher
+│   ├── Map.js             # Level Generation (Roguelike), Tile Rendering
+│   ├── Camera.js          # Viewport scrolling and following logic
+│   └── Input.js           # Input Manager (PC/Mobile abstraction)
 ├── components/            # Composition Logic (ECS-lite)
 │   ├── MovementComponent.js  # AI Pathfinding & Movement types
 │   └── AttackComponent.js    # AI Combat logic (Shoot, Melee)
 ├── entities/              # Game Objects
-│   ├── Entity.js          # Base class (Physics, Render, Lifecycle)
-│   ├── Player.js          # Player logic (Input, Stats, Inventory)
-│   ├── Enemy.js           # Base Enemy class
-│   ├── Bullet.js          # Projectile logic
-│   ├── Coin.js            # Collectible Currency
-│   ├── HealthPack.js      # Collectible Health
-│   ├── WeaponItem.js      # Collectible Weapons
-│   ├── Door.js            # Room connections
-│   ├── TrapDoor.js        # Level Exit logic
-│   ├── Altar.js           # Interactable Stat Upgrades
-│   ├── Particle.js        # Visual effects
-│   ├── Spawner.js         # Dynamic enemy spawning
-│   ├── Walker.js          # specific enemy variant
-│   ├── SmartEnemy.js      # specific enemy variant
-│   ├── StealthEnemy.js    # specific enemy variant
-│   ├── ShotgunEnemy.js    # specific enemy variant
-│   ├── HeavyShotgunEnemy.js # specific enemy variant
-│   └── RapidFireEnemy.js  # specific enemy variant
+│   ├── Entity.js          # Base class
+│   ├── Player.js          # Player logic
+│   └── ... (Enemies, Items, Projectiles)
 ├── ui/                    # User Interface
 │   ├── UIManager.js       # HUD, Menus, Modals
+│   ├── TouchControls.js   # Mobile Virtual Joysticks & Buttons
 │   └── DebugPanel.js      # Performance Monitor (F3)
 └── utils/                 # Utilities
     ├── Pathfinder.js      # A* Algorithm
     ├── SaveManager.js     # Persistence & Migration
-    └── SpatialHash.js     # Spatial Partitioning (Collision Optimization)
+    └── SpatialHash.js     # Spatial Partitioning
 ```
 
 ---
@@ -109,23 +97,68 @@ graph TD
     UI --> End([Render End])
 ```
 
-### 3.2 Spatial Partitioning (`SpatialHash.js` & `World.js`)
-To handle high entity counts without lag:
-1.  **Bucketing**: Every frame, `SpatialHash.clear()` is called. Active entities are re-inserted into grid cells based on their position and radius.
-2.  **Querying**: During collision checks, entities only check against neighbors in the same bucket(s).
-3.  **Optimization**: Static objects (like Items) are also hashed to ensure quick pickup detection.
+### 3.2 Spatial Hashing (Collision Optimization)
+The game uses a **Grid-based Spatial Hash** (`SpatialHash.js`) to optimize the collision detection phase.
 
-### 3.3 Map Generation (`Map.js`)
+1.  **Bucketing**: The world is divided into large grid cells ($2 \times$ Tile Size).
+2.  **Insertion**: Every frame, *active* entities are mapped to the cells they overlap.
+3.  **Querying**: Collision checks are restricted to entities within the same or adjacent cells, reducing complexity from $O(N^2)$ to $O(N)$.
+
+### 3.3 Room-Based Logic Culling (Update Optimization)
+To maintain performance with thousands of entities, the game uses a **Room-based Culling** system in `World.js`.
+
+*   **Room ID**: Every entity is assigned a `roomID` upon spawning (corresponding to the `Map.rooms` index).
+*   **Asleep/Awake States**:
+    *   **Awake (`isActive = true`)**: Entities in the player's current room (or global entities like bullets) update normally.
+    *   **Asleep (`isActive = false`)**: Entities in other rooms pause their logic (movement, pathfinding) to save CPU cycles.
+*   **Hybrid Benefit**: This separates the concern of "physics presence" (always needed for static collision) from "AI logic" (only needed when near).
+
+### 3.4 Map Generation (`Map.js`)
 The map uses a **Room-and-Corridor** algorithm:
 1.  **Grid**: 2D array (0=Floor, 1=Wall).
 2.  **Rooms**: Randomly places non-overlapping rectangles.
 3.  **Connections**: L-shaped corridors connect each new room to the previous one.
 4.  **Rendering**: Uses a "2.5D" style (Top Face + Front Face) with extensive caching logic to prevent redundant draw calls.
 
-### 3.4 Multi-Slot Save System (`SaveManager.js`)
-*   **Storage**: `localStorage` with JSON.
-*   **Slots**: Supports multiple slots (`roguelike_save_slot_N`).
-*   **Migration**: `checkLegacyMigration()` converts old save formats to the new slot-based schema automatically to preserve user progress.
+### 3.5 Multi-Slot Save System (`SaveManager.js`)
+
+#### **3.5.1 Storage Architecture**
+*   **Storage Medium**: Browser `localStorage`.
+*   **Key Format**: `roguelike_save_slot_{N}` (e.g., `roguelike_save_slot_1`).
+*   **Metadata**: A separate key `roguelike_saves_metadata` stores a summary of all slots for the menu UI.
+
+#### **3.5.2 Save Data Structure (JSON)**
+The game saves a complete snapshot of the player's progression and run state.
+
+```json
+{
+  "metadata": {
+    "name": "Run #1",          // Display name
+    "lastSaved": 171542389123 // Timestamp (ms)
+  },
+  "gameplay": {
+    "bank": 1500,             // Persistent Gold
+    "highScore": 5420,        // Best Score (Per Slot)
+    "level": 4,               // Current Floor
+    "score": 1250,            // Current Run Score
+    "unlockedStats": [        // Permanent Upgrades
+      "speed_boost_1", 
+      "health_boost_1"
+    ],
+    "unlockedSkills": [       // Acquired Abilities
+      "ricochet_bullets",
+      "dash_shockwave"
+    ],
+    "inventory": {            // (Planned)
+      "backpack": [],
+      "equipped": {}
+    }
+  }
+}
+```
+
+#### **3.5.3 Migration Strategy**
+The `checkLegacyMigration()` method runs at startup. If it detects old flat keys (e.g., `roguelike_bank`), it automatically bundles them into `Slot 1` and cleans up the legacy keys, ensuring no data loss for returning players.
 
 ---
 
@@ -138,6 +171,42 @@ The game uses a mix of Inheritance (Entity API) and Composition (Enemy Behaviors
 *   **`Enemy`**: Delegates logic to Components.
     *   **`MovementComponent`**: Handles `CHASE` (direct) or `SMART` (A*) movement.
     *   **`AttackComponent`**: Handles `PISTOL`, `SHOTGUN`, etc. firing patterns.
+
+```mermaid
+classDiagram
+    class Entity {
+        +x: float
+        +y: float
+        +radius: float
+        +update(dt)
+        +render(ctx)
+    }
+    class Player {
+        +inventory: Array
+        +stats: Object
+        +input: Input
+        +checkWallCollision()
+    }
+    class Enemy {
+        +hp: int
+        +movement: MovementComponent
+        +attack: AttackComponent
+    }
+    class MovementComponent {
+        +type: String
+        +update(dt)
+    }
+    class AttackComponent {
+        +weapon: String
+        +update(dt)
+        +shoot()
+    }
+
+    Entity <|-- Player
+    Entity <|-- Enemy
+    Enemy *-- MovementComponent
+    Enemy *-- AttackComponent
+```
 
 ---
 
@@ -164,12 +233,67 @@ The game uses a mix of Inheritance (Entity API) and Composition (Enemy Behaviors
 ---
 
 ## 6. Input Controls
-*   **WASD / Arrows**: Move
+
+The game automatically detects the device type at startup (`Platform.js`) and adapts controls accordingly.
+
+### 6.1 Input Architecture
+The input system abstracts the hardware layer, allowing the rest of the game logic (`Player.js`) to query actions (e.g., `isShooting()`) without knowing the source device.
+
+**Initialization Flow:**
+1.  **Startup (`main.js`)**: Calls `Platform.detect()` to determine if the device is Mobile or PC.
+2.  **Setup (`Input.js`)**:
+    *   **Mobile**: Instantiates `TouchControls.js` which injects DOM overlays (joysticks/buttons).
+    *   **PC**: Attaches standard `keydown`/`mousemove` event listeners to the window.
+3.  **Game Loop**: The `Input` class checks the active mode to return normalized vectors and booleans.
+
+```mermaid
+flowchart TD
+    Start([Game Launch]) --> Platform[Platform.detect]
+    Platform -- Checks UserAgent/Width --> IsMobile{Is Mobile?}
+    
+    %% PC Branch
+    IsMobile -- No --> PCInit[Input: Init PC Mode]
+    PCInit --> Listeners[Add Event Listeners<br>keydown, mousemove]
+    
+    %% Mobile Branch
+    IsMobile -- Yes --> MobileInit[Input: Init Mobile Mode]
+    MobileInit --> CSS[Add 'mobile' CSS class]
+    CSS --> Touch[new TouchControls]
+    Touch --> DOM[Inject Joysticks & Buttons]
+    
+    %% Transition to Game Loop
+    Listeners --> Query
+    DOM --> Query
+
+    subgraph UpdateLoop [Frame Update]
+        Query[Player queries Input] --> CheckMode{Platform.isMobile?}
+        CheckMode -- No --> ReadKeys[Read Keyboard/Mouse]
+        CheckMode -- Yes --> ReadTouch[Poll TouchControls]
+        ReadKeys --> Action[Return Action State]
+        ReadTouch --> Action
+    end
+```
+
+### 6.2 PC (Keyboard & Mouse)
+*   **WASD**: Move
 *   **Mouse**: Aim
 *   **Left Click**: Shoot
-*   **Space**: Dash
+*   **Space / Shift**: Dash
+*   **Q / Arrows**: Switch Weapon
+*   **E**: Interact
 *   **I**: Inventory
 *   **P**: Stats
 *   **O**: Skills
-*   **Esc**: Pause / Menu
+*   **Esc**: Pause
 *   **F3**: Debug Panel
+
+### 6.2 Mobile (Touch Controls)
+*   **Left Joystick**: Move
+*   **Right Joystick**: Aim & Shoot (Drag to aim, hold away from center to shoot)
+*   **Dash Button**: Dash
+*   **Swap Button (⟳)**: Switch Weapon
+*   **Hand Button**: Interact
+*   **HUD Buttons**:
+    *   **INV**: Inventory
+    *   **STATS**: Player Stats
+    *   **SKILLS**: Skill Tree
