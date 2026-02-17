@@ -25,10 +25,18 @@ export default class UIManager {
         this.weaponsGrid.addEventListener('click', (e) => this.handleInventoryClick(e, 'weapon'));
 
         this.restartBtn = document.getElementById('restart-btn');
-        this.restartBtn.addEventListener('click', () => {
+        this.restartBtn = document.getElementById('restart-btn');
+
+        const triggerRestart = (e) => {
+            if (e.cancelable) e.preventDefault(); // Prevent double-firing if both click and touch exist
+            e.stopPropagation();
+            console.log('Restart button triggered via', e.type);
             this.game.restart();
             this.hideGameOver();
-        });
+        };
+
+        this.restartBtn.addEventListener('click', triggerRestart);
+        this.restartBtn.addEventListener('touchstart', triggerRestart, { passive: false });
 
         // Exit Button
         // Exit Button & Confirmation
