@@ -565,7 +565,7 @@ export default class UIManager {
         const player = this.game.world.player;
         if (!player) return;
 
-        console.log('DEBUG: updateWeaponHUD', player.weapons.length, player.weapons);
+
 
         const maxSlots = player.weapons.length; // Should be 2 now
         for (let i = 0; i < maxSlots; i++) {
