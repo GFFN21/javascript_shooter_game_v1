@@ -4,6 +4,13 @@ import World from './World.js';
 import UIManager from '../ui/UIManager.js';
 import SaveManager from '../utils/SaveManager.js';
 import DebugPanel from '../ui/DebugPanel.js';
+import GameStateMachine from './GameStateMachine.js';
+import BootState from '../states/BootState.js';
+import SaveSelectState from '../states/SaveSelectState.js';
+import LoadingState from '../states/LoadingState.js';
+import PlayingState from '../states/PlayingState.js';
+import PausedState from '../states/PausedState.js';
+import GameOverState from '../states/GameOverState.js';
 
 export default class Game {
     constructor(canvas) {
@@ -40,8 +47,19 @@ export default class Game {
         this.loop = this.loop.bind(this);
         this.animationFrameId = null;
 
-        // Show Save Selection instead of starting immediately
-        this.ui.showSaveSelection();
+        // Initialize State Machine
+        this.stateMachine = new GameStateMachine(this);
+        this.stateMachine.register(new BootState());
+        this.stateMachine.register(new SaveSelectState());
+        this.stateMachine.register(new LoadingState());
+        this.stateMachine.register(new PlayingState());
+        this.stateMachine.register(new PausedState('inventory'));
+        this.stateMachine.register(new PausedState('skills'));
+        this.stateMachine.register(new PausedState('abilities'));
+        this.stateMachine.register(new GameOverState());
+
+        // Start in BOOT state (will auto-transition to SAVE_SELECT)
+        this.stateMachine.transition('BOOT');
     }
 
     loadGame(slotId) {
@@ -59,11 +77,9 @@ export default class Game {
             this.score = data.gameplay.score || 0;
         }
 
-        // CRITICAL: Recreate World to ensure Player is initialized with loaded stats!
-        // The previous world was created in constructor with empty stats.
-        this.world = new World(this);
-
-        this.start();
+        // Transition to LOADING with load payload
+        // LoadingState will create the World and start playing
+        this.stateMachine.transition('LOADING', { mode: 'load' });
     }
 
     saveProgress() {
@@ -124,28 +140,13 @@ export default class Game {
     }
 
     restart() {
-        // Persist Backpack
-        let savedInventory = null;
-        if (this.world && this.world.player) {
-            savedInventory = this.world.player.inventory;
-        }
-
-        this.level = 1;
-        // Score resets, but Bank persists!
-        this.score = 0;
-        this.isGameOver = false;
-        this.isPaused = false;
-        this.world = new World(this, savedInventory); // Reset world with saved items
-        this.start();
+        // Delegate to FSM: GAME_OVER → LOADING (restart mode)
+        this.stateMachine.transition('LOADING', { mode: 'restart' });
     }
 
     gameOver() {
-        this.isGameOver = true;
-        if (this.score > this.highScore) {
-            this.highScore = this.score;
-            localStorage.setItem('roguelike_highscore', this.highScore);
-        }
-        this.ui.showGameOver(this.score, this.highScore);
+        // Delegate to FSM: PLAYING → GAME_OVER
+        this.stateMachine.transition('GAME_OVER');
     }
 
     loop(timestamp) {
@@ -193,34 +194,12 @@ export default class Game {
     }
 
     update(dt) {
-        // Toggle Inventory
-        if (this.input.isPressed('KeyI')) {
-            this.ui.toggleInventory();
-        }
-        // Toggle Stats
-        if (this.input.isPressed('KeyP')) {
-            this.ui.toggleStats();
-        }
-        // Toggle Abilities (Skills)
-        if (this.input.isPressed('KeyO')) {
-            this.ui.toggleAbilities();
-        }
+        // Delegate update and input to the FSM
+        this.stateMachine.handleInput(this.input);
+        this.stateMachine.update(dt);
 
-        // Always update Input (to clear pressed keys)
-        // Note: Input.update() clears keysPressed, so we MUST call it.
-        // We checked KeyI above, so it's fine to clear now.
-
-        if (this.isPaused) {
-            // Only UI updates?
-            this.ui.update();
-        } else {
-            if (!this.isGameOver) {
-                this.world.update(dt);
-                this.camera.update(dt);
-                this.ui.update();
-            }
-        }
-        this.input.update(); // Clear one-shot keys
+        // Always clear one-shot keys at end of frame
+        this.input.update();
     }
 
     render() {

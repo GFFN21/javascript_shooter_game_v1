@@ -25,14 +25,12 @@ export default class UIManager {
         this.weaponsGrid.addEventListener('click', (e) => this.handleInventoryClick(e, 'weapon'));
 
         this.restartBtn = document.getElementById('restart-btn');
-        this.restartBtn = document.getElementById('restart-btn');
 
         const triggerRestart = (e) => {
-            if (e.cancelable) e.preventDefault(); // Prevent double-firing if both click and touch exist
+            if (e.cancelable) e.preventDefault();
             e.stopPropagation();
             console.log('Restart button triggered via', e.type);
             this.game.restart();
-            this.hideGameOver();
         };
 
         this.restartBtn.addEventListener('click', triggerRestart);
@@ -47,18 +45,16 @@ export default class UIManager {
 
         this.exitBtn.addEventListener('click', () => {
             this.exitConfirmModal.classList.remove('hidden');
-            this.game.isPaused = true;
         });
 
         this.confirmExitBtn.addEventListener('click', () => {
             this.exitConfirmModal.classList.add('hidden');
             this.game.saveProgress();
-            this.showSaveSelection();
+            this.game.stateMachine.transition('SAVE_SELECT');
         });
 
         this.cancelExitBtn.addEventListener('click', () => {
             this.exitConfirmModal.classList.add('hidden');
-            this.game.isPaused = false;
         });
 
         this.lastHp = -1;
@@ -122,7 +118,6 @@ export default class UIManager {
             }
 
             slotEl.onclick = () => {
-                this.hideSaveSelection();
                 this.game.loadGame(id);
             };
 
@@ -606,5 +601,12 @@ export default class UIManager {
 
     hideGameOver() {
         this.gameOverScreen.classList.add('hidden');
+    }
+
+    hideAllMenus() {
+        this.inventoryScreen.classList.add('hidden');
+        this.skillsScreen.classList.add('hidden');
+        this.abilitiesScreen.classList.add('hidden');
+        this.exitConfirmModal.classList.add('hidden');
     }
 }
