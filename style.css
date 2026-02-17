@@ -119,6 +119,8 @@ canvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    z-index: 2000;
+    /* Ensure it's on top of everything, including touch controls */
 }
 
 #hud-left {
