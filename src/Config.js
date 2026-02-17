@@ -8,6 +8,15 @@ export const CONFIG = {
         PADDING: 1
     },
 
+    ROOM_TYPES: {
+        SPAWN: 'spawn',
+        COMBAT: 'combat',
+        ELITE: 'elite',
+        LOOT: 'loot',
+        ALTAR: 'altar',
+        BOSS: 'boss'
+    },
+
     SPATIAL_HASH: {
         CELL_SIZE: 80 // 2x Tile Size
     },
@@ -131,7 +140,7 @@ export const CONFIG = {
         CHANCE_WEAPON: 0.2
     },
 
-    // Persistent Stats
+    // Persistent Stats (Permanent Upgrades)
     STAT_UPGRADES: {
         SPEED_BOOST_1: {
             id: 'speed_boost_1',
@@ -139,7 +148,8 @@ export const CONFIG = {
             description: '+10% Movement Speed',
             cost: 100,
             category: 'mobility',
-            oneTime: true
+            oneTime: true,
+            effect: { type: 'multiplier', stat: 'speed', value: 1.10 }
         },
         HEALTH_BOOST_1: {
             id: 'health_boost_1',
@@ -147,7 +157,8 @@ export const CONFIG = {
             description: '+1 Max HP (Permanent)',
             cost: 150,
             category: 'health',
-            oneTime: true
+            oneTime: true,
+            effect: { type: 'add', stat: 'maxHp', value: 1 }
         },
         RICOCHET: {
             id: 'ricochet',
@@ -155,7 +166,8 @@ export const CONFIG = {
             description: 'Bullets bounce once off walls',
             cost: 300,
             category: 'attack',
-            oneTime: true
+            oneTime: true,
+            effect: { type: 'add', stat: 'bulletBounces', value: 1 }
         },
         SPEED_BOOST_2: {
             id: 'speed_boost_2',
@@ -163,7 +175,8 @@ export const CONFIG = {
             description: '+15% Movement Speed',
             cost: 250,
             category: 'mobility',
-            oneTime: true
+            oneTime: true,
+            effect: { type: 'multiplier', stat: 'speed', value: 1.15 }
         },
         HEALTH_BOOST_2: {
             id: 'health_boost_2',
@@ -171,32 +184,60 @@ export const CONFIG = {
             description: '+2 Max HP (Permanent)',
             cost: 400,
             category: 'health',
-            oneTime: true
+            oneTime: true,
+            effect: { type: 'add', stat: 'maxHp', value: 2 }
         }
     },
 
-    // Unlockable Skills (Abilities)
+    // Unlockable Skills (Abilities/Powerups)
     SKILLS: {
         RICOCHET_BULLETS: {
             id: 'ricochet_bullets',
             name: 'Ricochet Bullets',
             description: 'Bullets bounce once off walls',
             cost: 300,
-            oneTime: true
+            oneTime: true,
+            effect: { type: 'add', stat: 'bulletBounces', value: 1 }
         },
         DASH_SHOCKWAVE: {
             id: 'dash_shockwave',
             name: 'Dash Shockwave',
             description: 'Dash creates a damaging shockwave',
             cost: 250,
-            oneTime: true
+            oneTime: true,
+            effect: { type: 'flag', stat: 'dashShockwave', value: true }
         },
         HEALTH_PACK_CARRIER: {
             id: 'health_pack_carrier',
             name: 'Health Pack Carrier',
             description: 'Carry 1 health pack for emergency use',
             cost: 200,
-            oneTime: true
+            oneTime: true,
+            effect: { type: 'flag', stat: 'canCarryHealth', value: true }
+        },
+        RICOCHET_II: {
+            id: 'ricochet_ii',
+            name: 'Ricochet Bullets II',
+            description: 'Bullets bounce twice on walls',
+            cost: 100,
+            oneTime: true,
+            effect: { type: 'add', stat: 'bulletBounces', value: 2 }
+        },
+        EXPLOSIVE_I: {
+            id: 'explosive_i',
+            name: 'Explosive Bullets I',
+            description: 'Bullets explode on impact',
+            cost: 80,
+            oneTime: true,
+            effect: { type: 'flag', stat: 'isExplosive', value: true }
+        },
+        ORBITAL_I: {
+            id: 'orbital_i',
+            name: 'Orbital Bullet I',
+            description: 'Every 10th bullet orbits you',
+            cost: 100,
+            oneTime: true,
+            effect: { type: 'flag', stat: 'canOrbit', value: true }
         }
     }
 };

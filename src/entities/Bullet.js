@@ -17,6 +17,19 @@ export default class Bullet extends Entity {
     }
 
     update(dt) {
+        if (this.behavior === 'orbital') {
+            const player = this.game.world.player;
+            if (player) {
+                this.orbitAngle += dt * 5; // Rotation speed
+                const orbitRadius = 60 + Math.sin(this.orbitAngle * 0.5) * 10; // Pulsing radius
+                this.x = player.x + Math.cos(this.orbitAngle) * orbitRadius;
+                this.y = player.y + Math.sin(this.orbitAngle) * orbitRadius;
+            } else {
+                this.markedForDeletion = true;
+            }
+            return;
+        }
+
         this.x += this.dx * this.speed * dt;
         this.y += this.dy * this.speed * dt;
 
@@ -51,6 +64,9 @@ export default class Bullet extends Entity {
         // Player Bullet hitting Enemy
         if (!this.isEnemy) {
             if (other.type === CONFIG.COLLISION_TYPES.ENEMY) {
+                if (this.isExplosive) {
+                    this.game.world.explode(this.x, this.y, 80, this.damage || 2);
+                }
                 other.takeDamage(this.damage || 1);
                 if (other.applyKnockback) other.applyKnockback(this.dx, this.dy, this.knockback || 400);
                 this.game.world.spawnParticles(other.x, other.y, '#ff0000', 8);

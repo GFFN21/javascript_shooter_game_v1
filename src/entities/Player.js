@@ -51,6 +51,8 @@ export default class Player extends Entity {
         this.frameTimer = 0;
         this.facing = 0; // 0:S, 1:SE, 2:E, 3:NE, 4:N, 5:NW, 6:W, 7:SW
         this.state = 'idle'; // idle, run
+
+        this.shotsFired = 0;
     }
 
     takeDamage(amount) {
@@ -62,37 +64,64 @@ export default class Player extends Entity {
     }
 
     applySkills() {
-        const stats = CONFIG.PLAYER;
-        let maxHp = stats.HP;
-        let speed = stats.SPEED;
+        const base = CONFIG.PLAYER;
 
+        // 1. Reset to base stats
+        this.speed = base.SPEED;
+        this.maxHp = base.HP;
+        this.dashSpeed = base.DASH_SPEED;
+        this.dashDuration = base.DASH_DURATION;
+        this.dashCooldown = base.DASH_COOLDOWN;
+        this.canRicochet = false;
+        this.bulletBounces = 0;
+        this.dashShockwave = false;
+        this.canCarryHealth = false;
+        this.isExplosive = false;
+        this.canOrbit = false;
+
+        // 2. Gather all active effects
+        const activeEffects = [];
+
+        // Permanent Upgrades
         if (this.game.unlockedStats) {
-            if (this.game.unlockedStats.has('health_boost_1')) maxHp += 1;
-            if (this.game.unlockedStats.has('health_boost_2')) maxHp += 2;
-            if (this.game.unlockedStats.has('speed_boost_1')) speed *= 1.10;
-            if (this.game.unlockedStats.has('speed_boost_2')) speed *= 1.15;
+            this.game.unlockedStats.forEach(id => {
+                const upgrade = Object.values(CONFIG.STAT_UPGRADES).find(u => u.id === id);
+                if (upgrade && upgrade.effect) activeEffects.push(upgrade.effect);
+            });
         }
 
-        // Apply
-        this.speed = speed;
+        // Skills (Abilities)
+        if (this.game.unlockedSkills) {
+            this.game.unlockedSkills.forEach(id => {
+                const skill = Object.values(CONFIG.SKILLS).find(s => s.id === id);
+                if (skill && skill.effect) activeEffects.push(skill.effect);
+            });
+        }
 
-        // Handle HP
-        const oldMax = this.maxHp || maxHp;
-        this.maxHp = maxHp;
+        // 3. Apply effects
+        // We apply 'add' and 'flag' first, then 'multiplier' to avoid order issues
+        const multipliers = [];
 
-        // If first time initialization (undefined hp), set full hp
+        activeEffects.forEach(eff => {
+            if (eff.type === 'add') {
+                this[eff.stat] += eff.value;
+            } else if (eff.type === 'flag') {
+                this[eff.stat] = eff.value;
+            } else if (eff.type === 'multiplier') {
+                multipliers.push(eff);
+            }
+        });
+
+        multipliers.forEach(eff => {
+            this[eff.stat] *= eff.value;
+        });
+
+        // 4. Handle HP logic (ensure current hp doesn't exceed new max)
         if (this.hp === undefined) {
             this.hp = this.maxHp;
-        } else if (this.maxHp > oldMax) {
-            // Optional: If mid-game upgrade, maybe heal the difference?
-            // For now, keep current HP, user just gains POTENTIAL.
-            // Actually, if I buy +1 HP, I expect to gain a health slot.
+        } else {
+            this.hp = Math.min(this.hp, this.maxHp);
         }
-
-        // Dash defaults
-        this.dashSpeed = stats.DASH_SPEED;
-        this.dashDuration = stats.DASH_DURATION;
-        this.dashCooldown = stats.DASH_COOLDOWN;
     }
 
     addToInventory(item) {
@@ -321,8 +350,21 @@ export default class Player extends Entity {
             if (stats.isMelee) {
                 bullet.radius = 20; // Big hitbox for punch
             } else {
-                // Apply Ricochet Skill
-                bullet.bounces = this.game.unlockedStats.has('ricochet') ? 1 : 0;
+                // Apply Skills to Projectile
+                bullet.bounces = this.bulletBounces;
+                bullet.isExplosive = this.isExplosive;
+
+                // Handle Orbital Every 10 shots
+                if (this.canOrbit) {
+                    this.shotsFired++;
+                    if (this.shotsFired >= 10) {
+                        this.shotsFired = 0;
+                        bullet.behavior = 'orbital';
+                        bullet.orbitAngle = Math.random() * Math.PI * 2;
+                        bullet.alwaysUpdate = true; // Stay active around player
+                        bullet.life = 10.0; // Orbit for a while
+                    }
+                }
             }
 
             this.game.world.addEntity(bullet);

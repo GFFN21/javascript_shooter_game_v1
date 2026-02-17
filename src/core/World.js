@@ -96,18 +96,6 @@ export default class World {
             }
         });
 
-        // Determine Altar Room (Odd Levels Only)
-        let altarRoomIndex = -1;
-        if (this.game.level % 2 !== 0) {
-            // Pick a random room excluding Spawn (0) and Exit (Last)
-            if (this.map.rooms.length > 2) {
-                // Range: 1 to length-2
-                // (length - 2) gives count of middle rooms
-                altarRoomIndex = 1 + Math.floor(Math.random() * (this.map.rooms.length - 2));
-                console.log(`Altar Room chosen: Room ${altarRoomIndex}`);
-            }
-        }
-
         // Setup Rooms
         for (let i = 0; i < this.map.rooms.length; i++) {
             const r = this.map.rooms[i];
@@ -117,66 +105,84 @@ export default class World {
             r.cleared = false;
             r.triggered = false;
 
-            // Skip Spawn Room (i=0)
-            if (i === 0) {
-                r.cleared = true;
-                r.triggered = true;
-                continue;
-            }
+            // 1. Handle Special Room Types
+            switch (r.type) {
+                case CONFIG.ROOM_TYPES.SPAWN:
+                    r.cleared = true;
+                    r.triggered = true;
+                    continue;
 
-            // Altar Room Logic
-            if (i === altarRoomIndex) {
-                r.isAltar = true;
-                // No Enemies!
-                // Spawn Altar Entity
-                const cx = (r.x + r.w / 2) * this.map.tileSize;
-                const cy = (r.y + r.h / 2) * this.map.tileSize;
-                this.addEntity(new Altar(this.game, cx, cy));
-
-                // Mark as effectively "cleared" so doors don't lock? 
-                // Or let it trigger but with 0 enemies it clears immediately?
-                // Logic checkRoomStatus checks: "if (!enemiesAlive) room.cleared = true"
-                // If 0 enemies spawn, enemiesAlive is false immediately?
-                // Yes. But we should probably prevent it from "triggering" a lock-and-unlock sequence just for style.
-                // Or maybe we want the "Room Cleared" event to pop?
-                // Let's rely on standard logic: 0 enemies -> Room Cleared immediately.
-                continue;
-            }
-
-            // Determine Enemy Count based on Room Size and Level
-            const area = r.w * r.h; // in tiles
-            let count = Math.floor(area / 50);
-            count += Math.floor(this.game.level / 3);
-            count += Math.floor(Math.random() * 3) - 1;
-
-            const numEnemies = Math.max(1, Math.min(count, 10));
-
-            for (let j = 0; j < numEnemies; j++) {
-                let ex, ey, tx, ty;
-                let validPos = false;
-                let attempts = 0;
-
-                while (!validPos && attempts < 15) {
-                    attempts++;
-                    tx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
-                    ty = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
-                    ex = tx * this.map.tileSize + this.map.tileSize / 2;
-                    ey = ty * this.map.tileSize + this.map.tileSize / 2;
-
-                    let safe = true;
-                    for (const door of r.doors) {
-                        const dist = Math.sqrt(Math.pow(ex - door.x, 2) + Math.pow(ey - door.y, 2));
-                        if (dist < 150) {
-                            safe = false;
-                            break;
-                        }
-                    }
-                    if (safe) validPos = true;
+                case CONFIG.ROOM_TYPES.ALTAR: {
+                    r.isAltar = true;
+                    const cx = (r.x + r.w / 2) * this.map.tileSize;
+                    const cy = (r.y + r.h / 2) * this.map.tileSize;
+                    this.addEntity(new Altar(this.game, cx, cy));
+                    continue;
                 }
 
-                const enemyType = this.pickEnemyType(this.game.level);
-                r.enemiesConfig.push({ type: enemyType, x: ex, y: ey });
+                case CONFIG.ROOM_TYPES.LOOT: {
+                    // Spawn a random item or chest (TODO: Chest Entity)
+                    // For now, spawn 1-2 random enemies as "guards"
+                    this.populateRoomEnemies(r, 2);
+                    continue;
+                }
+
+                case CONFIG.ROOM_TYPES.BOSS: {
+                    r.isBoss = true;
+                    // Spawn 5-8 hard enemies as a placeholder for Boss
+                    this.populateRoomEnemies(r, 6);
+                    continue;
+                }
+
+                case CONFIG.ROOM_TYPES.ELITE: {
+                    this.populateRoomEnemies(r, 6);
+                    continue;
+                }
+
+                default: // COMBAT
+                    this.populateRoomEnemies(r);
+                    break;
             }
+        }
+    }
+
+    populateRoomEnemies(r, overrideCount = null) {
+        // Determine Enemy Count based on Room Size and Level
+        const area = r.w * r.h;
+        let count = overrideCount !== null ? overrideCount : Math.floor(area / 50);
+
+        if (overrideCount === null) {
+            count += Math.floor(this.game.level / 3);
+            count += Math.floor(Math.random() * 3) - 1;
+        }
+
+        const numEnemies = Math.max(1, Math.min(count, 12));
+
+        for (let j = 0; j < numEnemies; j++) {
+            let ex, ey, tx, ty;
+            let validPos = false;
+            let attempts = 0;
+
+            while (!validPos && attempts < 15) {
+                attempts++;
+                tx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+                ty = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+                ex = tx * this.map.tileSize + this.map.tileSize / 2;
+                ey = ty * this.map.tileSize + this.map.tileSize / 2;
+
+                let safe = true;
+                for (const door of r.doors) {
+                    const dist = Math.sqrt(Math.pow(ex - door.x, 2) + Math.pow(ey - door.y, 2));
+                    if (dist < 150) {
+                        safe = false;
+                        break;
+                    }
+                }
+                if (safe) validPos = true;
+            }
+
+            const enemyType = this.pickEnemyType(this.game.level);
+            r.enemiesConfig.push({ type: enemyType, x: ex, y: ey });
         }
     }
 
@@ -501,8 +507,37 @@ export default class World {
                 }
                 this.spawnParticles(bullet.x, bullet.y, '#fff', 3);
             } else {
+                if (bullet.isExplosive) {
+                    this.explode(bullet.x, bullet.y, 80, bullet.damage || 2);
+                }
                 bullet.markedForDeletion = true;
                 this.spawnParticles(bullet.x, bullet.y, '#aaa', 5);
+            }
+        }
+    }
+
+    explode(x, y, radius, damage) {
+        // 1. Visual Effect
+        this.spawnParticles(x, y, '#ff8800', 20); // Orange fire
+        this.spawnParticles(x, y, '#ffff00', 10); // Yellow spark
+
+        // 2. Query Spatial Hash for nearby enemies
+        const dummy = { x, y, radius };
+        const candidates = this.spatialHash.query(dummy);
+
+        for (const target of candidates) {
+            if (target.type === CONFIG.COLLISION_TYPES.ENEMY) {
+                const dx = target.x - x;
+                const dy = target.y - y;
+                const distSq = dx * dx + dy * dy;
+                if (distSq <= radius * radius) {
+                    target.takeDamage(damage);
+                    // Add knockback away from explosion
+                    const dist = Math.sqrt(distSq) || 1;
+                    if (target.applyKnockback) {
+                        target.applyKnockback(dx / dist, dy / dist, 500);
+                    }
+                }
             }
         }
     }

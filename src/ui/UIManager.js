@@ -4,6 +4,18 @@ export default class UIManager {
     constructor(game) {
         this.game = game;
 
+        // Helper for consistent click/touch binding
+        this.bindButton = (btn, callback) => {
+            if (!btn) return;
+            const handler = (e) => {
+                if (e.cancelable) e.preventDefault();
+                e.stopPropagation();
+                callback(e);
+            };
+            btn.addEventListener('click', handler);
+            btn.addEventListener('touchstart', handler, { passive: false });
+        };
+
         this.heartsContainer = document.getElementById('hearts-container');
         this.levelDisplay = document.getElementById('level-display');
         this.scoreDisplay = document.getElementById('score-display');
@@ -21,41 +33,25 @@ export default class UIManager {
 
         // Inventory Click Handlers (Keep for click-to-equip/unequip if desired, or replace with DnD?)
         // Let's keep clicks as fallback or complementary.
-        this.inventoryGrid.addEventListener('click', (e) => this.handleInventoryClick(e, 'backpack'));
-        this.weaponsGrid.addEventListener('click', (e) => this.handleInventoryClick(e, 'weapon'));
+        this.bindButton(this.inventoryGrid, (e) => this.handleInventoryClick(e, 'backpack'));
+        this.bindButton(this.weaponsGrid, (e) => this.handleInventoryClick(e, 'weapon'));
 
         this.restartBtn = document.getElementById('restart-btn');
+        this.bindButton(this.restartBtn, () => this.game.restart());
 
-        const triggerRestart = (e) => {
-            if (e.cancelable) e.preventDefault();
-            e.stopPropagation();
-            console.log('Restart button triggered via', e.type);
-            this.game.restart();
-        };
-
-        this.restartBtn.addEventListener('click', triggerRestart);
-        this.restartBtn.addEventListener('touchstart', triggerRestart, { passive: false });
-
-        // Exit Button
         // Exit Button & Confirmation
         this.exitBtn = document.getElementById('exit-btn');
         this.exitConfirmModal = document.getElementById('exit-confirm-modal');
         this.confirmExitBtn = document.getElementById('confirm-exit-btn');
         this.cancelExitBtn = document.getElementById('cancel-exit-btn');
 
-        this.exitBtn.addEventListener('click', () => {
-            this.exitConfirmModal.classList.remove('hidden');
-        });
-
-        this.confirmExitBtn.addEventListener('click', () => {
+        this.bindButton(this.exitBtn, () => this.exitConfirmModal.classList.remove('hidden'));
+        this.bindButton(this.confirmExitBtn, () => {
             this.exitConfirmModal.classList.add('hidden');
             this.game.saveProgress();
             this.game.stateMachine.transition('SAVE_SELECT');
         });
-
-        this.cancelExitBtn.addEventListener('click', () => {
-            this.exitConfirmModal.classList.add('hidden');
-        });
+        this.bindButton(this.cancelExitBtn, () => this.exitConfirmModal.classList.add('hidden'));
 
         this.lastHp = -1;
 
@@ -105,21 +101,21 @@ export default class UIManager {
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-slot-btn';
                 deleteBtn.textContent = 'DELETE';
-                deleteBtn.onclick = (e) => {
+                this.bindButton(deleteBtn, (e) => {
                     e.stopPropagation();
-                    if (confirm(`Delete ${slotData.name}?`)) {
+                    if (confirm(`Delete Run #${id}?`)) {
                         SaveManager.deleteSlot(id);
                         this.renderSaveSlots();
                     }
-                };
+                });
                 slotEl.appendChild(deleteBtn);
             } else {
                 slotEl.innerHTML = `<h3>EMPTY SLOT</h3><p>Click to start new run</p>`;
             }
 
-            slotEl.onclick = () => {
+            this.bindButton(slotEl, () => {
                 this.game.loadGame(id);
-            };
+            });
 
             this.saveSlotsContainer.appendChild(slotEl);
         });
@@ -308,7 +304,7 @@ export default class UIManager {
                     btn.textContent = 'Buy';
                     btn.disabled = !canAfford;
                     if (canAfford) {
-                        btn.onclick = () => this.handleStatBuy(stat);
+                        this.bindButton(btn, () => this.handleStatBuy(stat));
                     }
                 }
 
@@ -381,7 +377,7 @@ export default class UIManager {
                 btn.textContent = 'Buy';
                 btn.disabled = !canAfford;
                 if (canAfford) {
-                    btn.onclick = () => this.handleSkillBuy(skill);
+                    this.bindButton(btn, () => this.handleSkillBuy(skill));
                 }
             }
 
@@ -394,29 +390,14 @@ export default class UIManager {
     }
 
     handleSkillBuy(skill) {
-        if (this.game.bank >= skill.cost) {
-            this.game.bank -= skill.cost;
-            this.game.unlockedSkills.add(skill.id);
-            this.game.saveProgress();
-
+        if (this.game.purchaseUpgrade(skill.id, 'skill')) {
             this.renderAbilities(); // Refresh UI
         }
     }
 
     handleStatBuy(stat) {
-        if (this.game.bank >= stat.cost) {
-            this.game.bank -= stat.cost;
-            this.game.unlockedStats.add(stat.id);
-            this.game.saveProgress();
-
-            // Apply immediately to Player
-            if (this.game.world.player) {
-                this.game.world.player.applySkills();
-            }
-
+        if (this.game.purchaseUpgrade(stat.id, 'stat')) {
             this.renderStats(); // Refresh UI
-
-            // Optional: Play unlock sound?
         }
     }
 

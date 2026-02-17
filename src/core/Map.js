@@ -1,3 +1,5 @@
+import { CONFIG } from '../Config.js';
+
 export default class Map {
     constructor(game) {
         console.warn("--- MAP MODULE V2 LOADED ---");
@@ -188,102 +190,169 @@ export default class Map {
     }
 
     generate() {
-        // Initialize with walls (1)
+        // Initialize Grid
         for (let y = 0; y < this.height; y++) {
             this.tiles[y] = [];
             for (let x = 0; x < this.width; x++) {
-                this.tiles[y][x] = 1;
+                this.tiles[y][x] = 1; // Wall
             }
         }
 
-        // Room Generation
-        const roomCount = 10;
-        for (let i = 0; i < roomCount; i++) {
-            const w = Math.floor(Math.random() * 8) + 7; // 7-14 (Was 5-10)
-            const h = Math.floor(Math.random() * 8) + 7;
-            const x = Math.floor(Math.random() * (this.width - w - 2)) + 1;
-            const y = Math.floor(Math.random() * (this.height - h - 2)) + 1;
+        this.rooms = [];
 
-            const room = { x, y, w, h };
+        // Phase 1: Node Planning
+        const plan = this.planLayout();
 
-            // Check overlap
-            let overlap = false;
-            for (const r of this.rooms) {
-                if (x < r.x + r.w + 1 && x + w + 1 > r.x &&
-                    y < r.y + r.h + 1 && y + h + 1 > r.y) {
-                    overlap = true;
-                    break;
-                }
-            }
+        // Phase 2: Grid Fitting
+        this.fitLayoutToGrid(plan);
 
-            if (!overlap) {
-                this.createRoom(room);
-                if (this.rooms.length > 0) {
-                    const prev = this.rooms[this.rooms.length - 1];
-                    this.connectRooms(prev, room);
-                }
-                this.rooms.push(room);
-            }
-        }
-
-        // Set points
+        // Phase 3: Connect & Polish
         if (this.rooms.length > 0) {
+            for (let i = 1; i < this.rooms.length; i++) {
+                this.connectRooms(this.rooms[i - 1], this.rooms[i]);
+            }
+
+            // Set Start/End Points
             const start = this.rooms[0];
+            const end = this.rooms[this.rooms.length - 1];
+
             this.startPoint = {
                 x: (start.x + Math.floor(start.w / 2)) * this.tileSize,
                 y: (start.y + Math.floor(start.h / 2)) * this.tileSize
             };
 
-            const end = this.rooms[this.rooms.length - 1];
             this.endPoint = {
                 x: (end.x + Math.floor(end.w / 2)) * this.tileSize,
                 y: (end.y + Math.floor(end.h / 2)) * this.tileSize
             };
         }
 
-        // Find Door Spots - At Room Entrances Only
+        // Phase 4: Door Spots
+        this.findDoorSpots();
+
+        if (this.tilesetLoaded) this.preRenderMap();
+    }
+
+    planLayout() {
+        const roomCount = CONFIG.LEVEL.ROOM_COUNT || 10;
+        const plan = [];
+
+        // Define Room Sequence
+        for (let i = 0; i < roomCount; i++) {
+            let type = CONFIG.ROOM_TYPES.COMBAT;
+
+            if (i === 0) type = CONFIG.ROOM_TYPES.SPAWN;
+            else if (i === roomCount - 1) type = CONFIG.ROOM_TYPES.BOSS;
+            else if (i === Math.floor(roomCount / 2)) type = CONFIG.ROOM_TYPES.ALTAR;
+            else if (i % 4 === 0) type = CONFIG.ROOM_TYPES.LOOT;
+
+            plan.push({ type });
+        }
+
+        return plan;
+    }
+
+    fitLayoutToGrid(plan) {
+        for (const entry of plan) {
+            let attempts = 0;
+            let placed = false;
+
+            while (!placed && attempts < 50) {
+                attempts++;
+
+                const w = Math.floor(Math.random() * 6) + 8; // 8-13
+                const h = Math.floor(Math.random() * 6) + 8;
+                const x = Math.floor(Math.random() * (this.width - w - 4)) + 2;
+                const y = Math.floor(Math.random() * (this.height - h - 4)) + 2;
+
+                // Pick a shape for variety, except for special rooms
+                let shape = 'RECT';
+                if (entry.type === CONFIG.ROOM_TYPES.COMBAT || entry.type === CONFIG.ROOM_TYPES.LOOT) {
+                    const rand = Math.random();
+                    if (rand < 0.2) shape = 'CIRCLE';
+                    else if (rand < 0.4) shape = 'CROSS';
+                    else if (rand < 0.6) shape = 'VOID_CENTER';
+                }
+
+                const room = { x, y, w, h, type: entry.type, shape };
+
+                // Check Overlap
+                let overlap = false;
+                for (const r of this.rooms) {
+                    if (x < r.x + r.w + 2 && x + w + 2 > r.x &&
+                        y < r.y + r.h + 2 && y + h + 2 > r.y) {
+                        overlap = true;
+                        break;
+                    }
+                }
+
+                if (!overlap) {
+                    this.createRoom(room);
+                    this.rooms.push(room);
+                    placed = true;
+                }
+            }
+        }
+    }
+
+    findDoorSpots() {
         this.doorSpots = [];
-        // Helper to add unique spots
         const addSpot = (x, y, isHoriz) => {
-            // Check bounds
             if (x < 1 || x >= this.width - 1 || y < 1 || y >= this.height - 1) return;
-            // Check if already exists? (Optional, but good practice)
             if (!this.doorSpots.find(d => d.x === x && d.y === y)) {
                 this.doorSpots.push({ x, y, isHorizontal: isHoriz });
             }
         };
 
         for (const r of this.rooms) {
-            // Check Top Edge
-            let y = r.y - 1;
+            // Check edges for floor-to-wall transitions where corridors connect
             for (let x = r.x; x < r.x + r.w; x++) {
-                if (this.tiles[y][x] === 0) addSpot(x, y, true);
+                if (this.tiles[r.y - 1][x] === 0) addSpot(x, r.y - 1, true);
+                if (this.tiles[r.y + r.h][x] === 0) addSpot(x, r.y + r.h, true);
             }
-            // Check Bottom Edge
-            y = r.y + r.h;
-            for (let x = r.x; x < r.x + r.w; x++) {
-                if (this.tiles[y][x] === 0) addSpot(x, y, true);
-            }
-            // Check Left Edge
-            let x = r.x - 1;
             for (let y = r.y; y < r.y + r.h; y++) {
-                if (this.tiles[y][x] === 0) addSpot(x, y, false);
-            }
-            // Check Right Edge
-            x = r.x + r.w;
-            for (let y = r.y; y < r.y + r.h; y++) {
-                if (this.tiles[y][x] === 0) addSpot(x, y, false);
+                if (this.tiles[y][r.x - 1] === 0) addSpot(r.x - 1, y, false);
+                if (this.tiles[y][r.x + r.w] === 0) addSpot(r.x + r.w, y, false);
             }
         }
-
-        console.log("Door Spots Found:", this.doorSpots.length);
-        if (this.tilesetLoaded) this.preRenderMap();
+        console.log("Structured Door Spots Found:", this.doorSpots.length);
     }
 
     createRoom(r) {
+        const cx = r.x + r.w / 2;
+        const cy = r.y + r.h / 2;
+
         for (let y = r.y; y < r.y + r.h; y++) {
             for (let x = r.x; x < r.x + r.w; x++) {
-                this.tiles[y][x] = 0; // Floor
+                let isFloor = false;
+
+                switch (r.shape) {
+                    case 'CIRCLE': {
+                        const dx = (x - cx) / (r.w / 2);
+                        const dy = (y - cy) / (r.h / 2);
+                        if (dx * dx + dy * dy <= 1.0) isFloor = true;
+                        break;
+                    }
+                    case 'CROSS': {
+                        const midX = Math.abs(x - cx) < r.w * 0.2;
+                        const midY = Math.abs(y - cy) < r.h * 0.2;
+                        if (midX || midY) isFloor = true;
+                        break;
+                    }
+                    case 'VOID_CENTER': {
+                        const isBorder = x === r.x || x === r.x + r.w - 1 || y === r.y || y === r.y + r.h - 1;
+                        const isNearCenter = Math.abs(x - cx) < 2 && Math.abs(y - cy) < 2;
+                        if (!isNearCenter || isBorder) isFloor = true;
+                        break;
+                    }
+                    default: // RECT
+                        isFloor = true;
+                        break;
+                }
+
+                if (isFloor) {
+                    this.tiles[y][x] = 0; // Floor
+                }
             }
         }
     }

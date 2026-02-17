@@ -1,6 +1,7 @@
 import Input from './Input.js';
 import Camera from './Camera.js';
 import World from './World.js';
+import { CONFIG } from '../Config.js';
 import UIManager from '../ui/UIManager.js';
 import SaveManager from '../utils/SaveManager.js';
 import DebugPanel from '../ui/DebugPanel.js';
@@ -66,6 +67,14 @@ export default class Game {
         this.currentSlotId = slotId;
         const data = SaveManager.loadSlot(slotId);
 
+        // Reset to default session state before loading
+        this.bank = 0;
+        this.unlockedStats = new Set();
+        this.unlockedSkills = new Set();
+        this.highScore = 0;
+        this.level = 1;
+        this.score = 0;
+
         if (data && data.gameplay) {
             this.bank = data.gameplay.bank || 0;
             this.unlockedStats = new Set(data.gameplay.unlockedStats || []);
@@ -80,6 +89,40 @@ export default class Game {
         // Transition to LOADING with load payload
         // LoadingState will create the World and start playing
         this.stateMachine.transition('LOADING', { mode: 'load' });
+    }
+
+    purchaseUpgrade(upgradeId, type = 'stat') {
+        const configSource = type === 'stat' ? CONFIG.STAT_UPGRADES : CONFIG.SKILLS;
+        const upgrade = Object.values(configSource).find(u => u.id === upgradeId);
+
+        if (!upgrade) {
+            console.error(`[Game] Upgrade ${upgradeId} not found in ${type}`);
+            return false;
+        }
+
+        // Check availability and bank
+        const unlockedSet = type === 'stat' ? this.unlockedStats : this.unlockedSkills;
+        if (unlockedSet.has(upgradeId)) {
+            console.warn(`[Game] Upgrade ${upgradeId} already unlocked`);
+            return false;
+        }
+
+        if (this.bank >= upgrade.cost) {
+            this.bank -= upgrade.cost;
+            unlockedSet.add(upgradeId);
+            this.saveProgress();
+
+            console.log(`[Game] Purchased ${type} upgrade: ${upgradeId}. Remaining bank: ${this.bank}`);
+
+            // Refresh Player stats immediately
+            if (this.world && this.world.player) {
+                this.world.player.applySkills();
+            }
+            return true;
+        }
+
+        console.warn(`[Game] Insufficient funds for ${upgradeId}. Need ${upgrade.cost}, have ${this.bank}`);
+        return false;
     }
 
     saveProgress() {
