@@ -4,7 +4,7 @@ import World from './World.js';
 import { CONFIG } from '../Config.js';
 import UIManager from '../ui/UIManager.js';
 import SaveManager from '../utils/SaveManager.js';
-import DebugPanel from '../ui/DebugPanelV2.js';
+
 import GameStateMachine from './GameStateMachine.js';
 import BootState from '../states/BootState.js';
 import SaveSelectState from '../states/SaveSelectState.js';
@@ -42,7 +42,7 @@ export default class Game {
         this.camera = new Camera(this, 0, 0);
         this.world = new World(this);
         this.ui = new UIManager(this);
-        this.debugPanel = new DebugPanel(this);
+
 
         // Bind loop
         this.loop = this.loop.bind(this);
@@ -214,33 +214,7 @@ export default class Game {
         this.render();
         const endRender = performance.now();
 
-        // Update Debug
-        if (this.debugPanel) {
-            const rStats = this.world.renderStats || {};
 
-            // Calculate Entity Breakdown
-            const breakdown = {};
-            this.world.entities.forEach(e => {
-                const name = e.constructor.name;
-                breakdown[name] = (breakdown[name] || 0) + 1;
-            });
-
-            this.debugPanel.update({
-                fps: 1 / deltaTime,
-                frameTime: deltaTime * 1000,
-                updateTime: endUpdate - startUpdate,
-                renderTime: endRender - startRender,
-                entityCount: this.world.entities.length,
-                particleCount: this.world.particles.length,
-                collisionChecks: this.world.collisionChecks,
-                entityBreakdown: breakdown,
-                // Breakdown
-                rFloor: rStats.floor || 0,
-                rEntities: rStats.entities || 0,
-                rParticles: rStats.particles || 0,
-                rWalls: rStats.walls || 0
-            });
-        }
 
         this.animationFrameId = requestAnimationFrame(this.loop);
     }
