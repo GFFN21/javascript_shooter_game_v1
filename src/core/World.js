@@ -37,8 +37,11 @@ export default class World {
 
     init() {
         // Find a valid spawn point
-        const spawnX = this.map.startPoint.x;
-        const spawnY = this.map.startPoint.y;
+        const rawSpawnX = Math.floor(this.map.startPoint.x / this.map.tileSize);
+        const rawSpawnY = Math.floor(this.map.startPoint.y / this.map.tileSize);
+        const spawnPos = this.findNearestFloor(rawSpawnX, rawSpawnY);
+        const spawnX = spawnPos.x * this.map.tileSize + this.map.tileSize / 2;
+        const spawnY = spawnPos.y * this.map.tileSize + this.map.tileSize / 2;
 
         if (!this.player) {
             this.player = new Player(this.game, spawnX, spawnY);
@@ -65,12 +68,22 @@ export default class World {
 
         // Spawn Trap Door at Exit
         if (this.map.endPoint) {
+            const tx = Math.floor(this.map.endPoint.x / this.map.tileSize);
+            const ty = Math.floor(this.map.endPoint.y / this.map.tileSize);
+            const pos = this.findNearestFloor(tx, ty);
             const off = this.map.tileSize / 2;
-            this.exitDoor = new TrapDoor(this.game, this.map.endPoint.x + off, this.map.endPoint.y + off);
+            this.exitDoor = new TrapDoor(this.game, pos.x * this.map.tileSize + off, pos.y * this.map.tileSize + off);
             this.addEntity(this.exitDoor);
 
-            // Mark last room as Exit
-            if (this.map.rooms.length > 0) {
+            // SYNC coordinate for interaction checks
+            this.map.endPoint = { x: this.exitDoor.x, y: this.exitDoor.y };
+
+            // Mark BOSS room as Exit
+            const bossRoom = this.map.rooms.find(r => r.type === CONFIG.ROOM_TYPES.BOSS);
+            if (bossRoom) {
+                bossRoom.isExit = true;
+            } else if (this.map.rooms.length > 0) {
+                // Fallback to last room if boss type not found (shouldn't happen now)
                 this.map.rooms[this.map.rooms.length - 1].isExit = true;
             }
         }
@@ -114,9 +127,12 @@ export default class World {
 
                 case CONFIG.ROOM_TYPES.ALTAR: {
                     r.isAltar = true;
-                    const cx = (r.x + r.w / 2) * this.map.tileSize;
-                    const cy = (r.y + r.h / 2) * this.map.tileSize;
-                    this.addEntity(new Altar(this.game, cx, cy));
+                    // Find a valid floor spot for the Altar
+                    const pos = this.findNearestFloor(
+                        r.x + Math.floor(r.w / 2),
+                        r.y + Math.floor(r.h / 2)
+                    );
+                    this.addEntity(new Altar(this.game, pos.x * this.map.tileSize + this.map.tileSize / 2, pos.y * this.map.tileSize + this.map.tileSize / 2));
                     continue;
                 }
 
@@ -163,17 +179,22 @@ export default class World {
             let validPos = false;
             let attempts = 0;
 
-            while (!validPos && attempts < 15) {
+            while (!validPos && attempts < 30) {
                 attempts++;
-                tx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
-                ty = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+                tx = r.x + Math.floor(Math.random() * r.w);
+                ty = r.y + Math.floor(Math.random() * r.h);
+
+                // 1. MUST be a floor tile
+                if (this.map.tiles[ty][tx] !== 0) continue;
+
                 ex = tx * this.map.tileSize + this.map.tileSize / 2;
                 ey = ty * this.map.tileSize + this.map.tileSize / 2;
 
+                // 2. Safe distance from doors
                 let safe = true;
                 for (const door of r.doors) {
                     const dist = Math.sqrt(Math.pow(ex - door.x, 2) + Math.pow(ey - door.y, 2));
-                    if (dist < 150) {
+                    if (dist < 120) {
                         safe = false;
                         break;
                     }
@@ -184,6 +205,23 @@ export default class World {
             const enemyType = this.pickEnemyType(this.game.level);
             r.enemiesConfig.push({ type: enemyType, x: ex, y: ey });
         }
+    }
+
+    findNearestFloor(tx, ty) {
+        if (this.map.tiles[ty][tx] === 0) return { x: tx, y: ty };
+
+        for (let radius = 1; radius < 10; radius++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                for (let dy = -radius; dy <= radius; dy++) {
+                    const nx = tx + dx;
+                    const ny = ty + dy;
+                    if (nx >= 0 && nx < this.map.width && ny >= 0 && ny < this.map.height) {
+                        if (this.map.tiles[ny][nx] === 0) return { x: nx, y: ny };
+                    }
+                }
+            }
+        }
+        return { x: tx, y: ty };
     }
 
     pickEnemyType(level) {
@@ -378,6 +416,12 @@ export default class World {
                 console.log("Room Cleared!");
                 this.activeRoom.cleared = true;
                 this.activeRoom.doors.forEach(d => d.unlock());
+
+                // Force Open Exit Portal if this was the exit room
+                if (this.activeRoom.isExit && this.exitDoor) {
+                    this.exitDoor.open();
+                }
+
                 this.activeRoom = null;
                 if (!this.player) return;
                 const dx = this.player.x - this.map.endPoint.x;

@@ -221,21 +221,26 @@ export default class UIManager {
 
         list.innerHTML = '';
 
-        // Bank Display (spans all columns)
-        const bankDisplay = document.createElement('div');
-        bankDisplay.style.gridColumn = '1 / -1';
-        bankDisplay.style.color = '#FFD700';
-        bankDisplay.style.marginBottom = '10px';
-        bankDisplay.style.fontSize = '20px';
-        bankDisplay.style.textAlign = 'center';
+        // Bank Display (ensure it's clean and standalone)
+        const skillsScreen = document.getElementById('skills-screen');
+        let bankDisplay = document.getElementById('bank-display-stats');
+        if (!bankDisplay) {
+            bankDisplay = document.createElement('div');
+            bankDisplay.id = 'bank-display-stats';
+            bankDisplay.style.color = '#FFD700';
+            bankDisplay.style.marginBottom = '15px';
+            bankDisplay.style.fontSize = '22px';
+            bankDisplay.style.fontWeight = 'bold';
+            skillsScreen.insertBefore(bankDisplay, document.getElementById('skills-container'));
+        }
         bankDisplay.textContent = `Bank: ${this.game.bank} G`;
-        list.appendChild(bankDisplay);
 
         // Group stats by category
         const categories = {
             attack: [],
             health: [],
-            mobility: []
+            mobility: [],
+            dash: []
         };
 
         Object.values(CONFIG.STAT_UPGRADES).forEach(stat => {
@@ -244,20 +249,28 @@ export default class UIManager {
             }
         });
 
-        // Create columns for each category
         const categoryNames = {
             attack: 'Attack',
             health: 'Health',
-            mobility: 'Mobility'
+            mobility: 'Movement',
+            dash: 'Dash Skills'
         };
 
-        ['attack', 'health', 'mobility'].forEach(categoryKey => {
+        Object.keys(categories).forEach(categoryKey => {
+            if (categories[categoryKey].length === 0) return;
+
             const column = document.createElement('div');
             column.className = 'stat-category';
+            // Default expansion state or use a persistent one? Let's default all expanded.
 
             // Category header
             const header = document.createElement('h3');
-            header.textContent = categoryNames[categoryKey];
+            header.innerHTML = `<span>${categoryNames[categoryKey]}</span>`;
+
+            this.bindButton(header, () => {
+                column.classList.toggle('collapsed');
+            });
+
             column.appendChild(header);
 
             // Stats in this category

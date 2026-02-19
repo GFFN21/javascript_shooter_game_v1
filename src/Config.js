@@ -186,6 +186,33 @@ export const CONFIG = {
             category: 'health',
             oneTime: true,
             effect: { type: 'add', stat: 'maxHp', value: 2 }
+        },
+        DASH_SPEED_1: {
+            id: 'dash_speed_1',
+            name: 'Agility III',
+            description: '+25% Dash Speed',
+            cost: 200,
+            category: 'dash',
+            oneTime: true,
+            effect: { type: 'multiplier', stat: 'dashSpeed', value: 1.25 }
+        },
+        DASH_DURATION_1: {
+            id: 'dash_duration_1',
+            name: 'Agility IV',
+            description: '+25% Dash Duration',
+            cost: 200,
+            category: 'dash',
+            oneTime: true,
+            effect: { type: 'multiplier', stat: 'dashDuration', value: 1.25 }
+        },
+        DASH_COOLDOWN_1: {
+            id: 'dash_cooldown_1',
+            name: 'Agility V',
+            description: '-20% Dash Cooldown',
+            cost: 200,
+            category: 'dash',
+            oneTime: true,
+            effect: { type: 'multiplier', stat: 'dashCooldown', value: 0.8 }
         }
     },
 

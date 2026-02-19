@@ -44,9 +44,13 @@ export default class TrapDoor extends Entity {
                 this.x - 32, this.y - 32, 64, 64
             );
         } else {
-            // Placeholder
-            ctx.fillStyle = this.isOpen ? '#000' : '#555';
-            ctx.fillRect(this.x - 20, this.y - 20, 40, 40);
+            // Placeholder - Vibrant Gold/Yellow
+            ctx.fillStyle = this.isOpen ? '#ffff00' : '#886600';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
         }
     }
 }

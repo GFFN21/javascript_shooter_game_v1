@@ -190,21 +190,34 @@ export default class Map {
     }
 
     generate() {
-        // Initialize Grid
-        for (let y = 0; y < this.height; y++) {
-            this.tiles[y] = [];
-            for (let x = 0; x < this.width; x++) {
-                this.tiles[y][x] = 1; // Wall
+        let generationAttempts = 0;
+        let success = false;
+
+        while (!success && generationAttempts < 10) {
+            generationAttempts++;
+            this.rooms = [];
+
+            // Re-initialize Grid
+            for (let y = 0; y < this.height; y++) {
+                this.tiles[y] = [];
+                for (let x = 0; x < this.width; x++) {
+                    this.tiles[y][x] = 1;
+                }
             }
+
+            // Phase 1: Node Planning
+            const plan = this.planLayout();
+
+            // Phase 2: Grid Fitting
+            this.fitLayoutToGrid(plan);
+
+            // Validation
+            const hasSpawn = this.rooms.some(r => r.type === CONFIG.ROOM_TYPES.SPAWN);
+            const hasBoss = this.rooms.some(r => r.type === CONFIG.ROOM_TYPES.BOSS);
+            if (hasSpawn && hasBoss) success = true;
         }
 
-        this.rooms = [];
-
-        // Phase 1: Node Planning
-        const plan = this.planLayout();
-
-        // Phase 2: Grid Fitting
-        this.fitLayoutToGrid(plan);
+        if (!success) console.error("Map Generation Failed!");
 
         // Phase 3: Connect & Polish
         if (this.rooms.length > 0) {
@@ -213,8 +226,8 @@ export default class Map {
             }
 
             // Set Start/End Points
-            const start = this.rooms[0];
-            const end = this.rooms[this.rooms.length - 1];
+            const start = this.rooms.find(r => r.type === CONFIG.ROOM_TYPES.SPAWN) || this.rooms[0];
+            const end = this.rooms.find(r => r.type === CONFIG.ROOM_TYPES.BOSS) || this.rooms[this.rooms.length - 1];
 
             this.startPoint = {
                 x: (start.x + Math.floor(start.w / 2)) * this.tileSize,
@@ -257,7 +270,10 @@ export default class Map {
             let attempts = 0;
             let placed = false;
 
-            while (!placed && attempts < 50) {
+            const isCritical = entry.type === CONFIG.ROOM_TYPES.SPAWN || entry.type === CONFIG.ROOM_TYPES.BOSS;
+            const maxAttempts = isCritical ? 200 : 50;
+
+            while (!placed && attempts < maxAttempts) {
                 attempts++;
 
                 const w = Math.floor(Math.random() * 6) + 8; // 8-13
@@ -291,6 +307,10 @@ export default class Map {
                     this.rooms.push(room);
                     placed = true;
                 }
+            }
+
+            if (!placed && isCritical) {
+                console.warn(`FAILED to place critical room of type: ${entry.type}`);
             }
         }
     }
