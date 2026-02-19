@@ -4,7 +4,7 @@ import World from './World.js';
 import { CONFIG } from '../Config.js';
 import UIManager from '../ui/UIManager.js';
 import SaveManager from '../utils/SaveManager.js';
-import DebugPanel from '../ui/DebugPanel.js';
+import DebugPanel from '../ui/DebugPanelV2.js';
 import GameStateMachine from './GameStateMachine.js';
 import BootState from '../states/BootState.js';
 import SaveSelectState from '../states/SaveSelectState.js';
@@ -215,8 +215,16 @@ export default class Game {
         const endRender = performance.now();
 
         // Update Debug
-        if (this.debugPanel && this.debugPanel.visible) {
+        if (this.debugPanel) {
             const rStats = this.world.renderStats || {};
+
+            // Calculate Entity Breakdown
+            const breakdown = {};
+            this.world.entities.forEach(e => {
+                const name = e.constructor.name;
+                breakdown[name] = (breakdown[name] || 0) + 1;
+            });
+
             this.debugPanel.update({
                 fps: 1 / deltaTime,
                 frameTime: deltaTime * 1000,
@@ -225,6 +233,7 @@ export default class Game {
                 entityCount: this.world.entities.length,
                 particleCount: this.world.particles.length,
                 collisionChecks: this.world.collisionChecks,
+                entityBreakdown: breakdown,
                 // Breakdown
                 rFloor: rStats.floor || 0,
                 rEntities: rStats.entities || 0,
