@@ -23,6 +23,27 @@ export default class WeaponItem extends Entity {
         // Animation
         this.bobOffset = Math.random() * Math.PI;
         this.baseY = y;
+
+        // Sprite
+        this.sprite = new Image();
+        const spriteSrc = this.getSpriteSrc(this.weaponType);
+        if (spriteSrc) {
+            this.sprite.src = spriteSrc;
+        }
+        this.spriteLoaded = false;
+        this.sprite.onload = () => this.spriteLoaded = true;
+    }
+
+    getSpriteSrc(type) {
+        switch (type) {
+            case 'Shotgun':
+            case 'Heavy Shotgun':
+                return 'assets/sprites/Guns/SawedOffShotgun.png';
+            case 'Pistol':
+                return 'assets/sprites/Guns/Luger.png';
+            default:
+                return null;
+        }
     }
 
     getStats(type) {
@@ -71,7 +92,7 @@ export default class WeaponItem extends Entity {
 
     update(dt) {
         this.bobOffset += 3 * dt;
-        this.y = this.baseY + Math.sin(this.bobOffset) * 3;
+        this.y = this.baseY + Math.sin(this.bobOffset) * 6; // slightly more bob
     }
 
     onCollision(other) {
@@ -84,22 +105,30 @@ export default class WeaponItem extends Entity {
     }
 
     render(ctx) {
-        // Draw Gun Sprite (Simple Rectangle for now)
         ctx.save();
         ctx.translate(this.x, this.y);
 
         // Glow
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 15;
         ctx.shadowColor = this.stats.color;
 
-        ctx.fillStyle = '#444';
-        ctx.fillRect(-8, -4, 16, 8); // Body
-        ctx.fillStyle = '#222';
-        ctx.fillRect(-8, 0, 4, 6); // Handle
+        if (this.spriteLoaded) {
+            // Draw Sprite
+            const scale = 1.5;
+            const w = this.sprite.naturalWidth * scale;
+            const h = this.sprite.naturalHeight * scale;
 
-        // Accent
-        ctx.fillStyle = this.stats.color;
-        ctx.fillRect(4, -4, 4, 8); // Barrel tip
+            // Draw centered
+            ctx.drawImage(this.sprite, -w / 2, -h / 2, w, h);
+        } else {
+            // Fallback: Simple Rectangle
+            ctx.fillStyle = '#444';
+            ctx.fillRect(-8, -4, 16, 8); // Body
+            ctx.fillStyle = '#222';
+            ctx.fillRect(-8, 0, 4, 6); // Handle
+            ctx.fillStyle = this.stats.color;
+            ctx.fillRect(4, -4, 4, 8); // Barrel tip
+        }
 
         ctx.restore();
     }

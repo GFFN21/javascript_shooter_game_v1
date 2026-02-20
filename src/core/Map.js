@@ -12,12 +12,12 @@ export default class Map {
 
         // Tileset Loading
         this.tileset = new Image();
-        // Add timestamp to force reload
-        this.tileset.src = 'assets/tilesets/mayan_tileset.png?v=' + Date.now();
+        // Use the new uncolored tileset
+        this.tileset.src = 'assets/tilesets/new_uncolored_tileset.png?v=' + Date.now();
         this.tilesetLoaded = false;
         this.tileset.onload = () => {
             this.tilesetLoaded = true;
-            console.log("Tileset Loaded. Dim:", this.tileset.naturalWidth, this.tileset.naturalHeight);
+            console.log("Pixelated Tileset Loaded. Dim:", this.tileset.naturalWidth, this.tileset.naturalHeight);
             this.preRenderMap();
         };
         this.tileset.onerror = () => {
@@ -78,11 +78,13 @@ export default class Map {
             this.floorCanvas.width = this.width * this.tileSize;
             this.floorCanvas.height = this.height * this.tileSize;
             this.floorCtx = this.floorCanvas.getContext('2d');
+            this.floorCtx.imageSmoothingEnabled = false;
 
             this.wallCanvas = document.createElement('canvas');
             this.wallCanvas.width = this.width * this.tileSize;
             this.wallCanvas.height = this.height * this.tileSize;
             this.wallCtx = this.wallCanvas.getContext('2d');
+            this.wallCtx.imageSmoothingEnabled = false;
         }
 
         const fCtx = this.floorCtx;
