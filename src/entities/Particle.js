@@ -4,6 +4,12 @@ import { CONFIG } from '../Config.js';
 export default class Particle extends Entity {
     constructor(game, x, y, options = {}) {
         super(game, x, y);
+        this.init(x, y, options);
+    }
+
+    init(x, y, options = {}) {
+        this.x = x;
+        this.y = y;
         this.dx = (Math.random() - 0.5) * (options.speed || 100);
         this.dy = (Math.random() - 0.5) * (options.speed || 100);
         this.life = options.life || 0.5;
@@ -14,6 +20,7 @@ export default class Particle extends Entity {
 
         // Particles don't collide
         this.type = CONFIG.COLLISION_TYPES.NONE;
+        this.markedForDeletion = false;
     }
 
     update(dt) {

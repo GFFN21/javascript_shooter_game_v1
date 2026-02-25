@@ -59,6 +59,16 @@ export default class UIManager {
         this.draggedSource = null; // 'backpack' or 'weapon'
         this.draggedIndex = -1;
         this.hoveredSlot = null; // { source: '...', index: ... }
+
+        // UI State Cache (Prevents 60Hz DOM Thrashing)
+        this.lastLevel = -1;
+        this.lastScore = -1;
+        this.lastBank = -1;
+
+        // HUD State Cache
+        this.lastWeaponIndex = -1;
+        this.lastWeapon0 = undefined; // Use undefined so null matches empty slots
+        this.lastWeapon1 = undefined;
     }
 
     showSaveSelection() {
@@ -541,10 +551,21 @@ export default class UIManager {
             }
         }
 
-        this.levelDisplay.textContent = this.game.level;
-        this.scoreDisplay.textContent = this.game.score;
-        // Show Bank Gold as it's the spending currency
-        this.moneyDisplay.textContent = 'Gold: ' + this.game.bank;
+        // Update Level, Score, Bank ONLY if changed
+        if (this.game.level !== this.lastLevel) {
+            this.levelDisplay.textContent = this.game.level;
+            this.lastLevel = this.game.level;
+        }
+
+        if (this.game.score !== this.lastScore) {
+            this.scoreDisplay.textContent = this.game.score;
+            this.lastScore = this.game.score;
+        }
+
+        if (this.game.bank !== this.lastBank) {
+            this.moneyDisplay.textContent = 'Gold: ' + this.game.bank;
+            this.lastBank = this.game.bank;
+        }
 
         this.updateWeaponHUD();
     }
@@ -555,11 +576,23 @@ export default class UIManager {
         }
         if (!this.weaponHudContainer) return; // Safety
 
-        this.weaponHudContainer.innerHTML = '';
         const player = this.game.world.player;
         if (!player) return;
 
+        // CHECK CACHE: Only rebuild if weapons or selected index changed
+        if (this.lastWeaponIndex === player.currentWeaponIndex &&
+            this.lastWeapon0 === player.weapons[0] &&
+            this.lastWeapon1 === player.weapons[1]) {
+            return; // No layout changes needed!
+        }
 
+        // Update Cache
+        this.lastWeaponIndex = player.currentWeaponIndex;
+        this.lastWeapon0 = player.weapons[0];
+        this.lastWeapon1 = player.weapons[1];
+
+        // Rebuild DOM
+        this.weaponHudContainer.innerHTML = '';
 
         const maxSlots = player.weapons.length; // Should be 2 now
         for (let i = 0; i < maxSlots; i++) {

@@ -4,16 +4,33 @@ import { CONFIG } from '../Config.js';
 export default class Bullet extends Entity {
     constructor(game, x, y, dx, dy, speed, isEnemy = false) {
         super(game, x, y);
+        this.init(x, y, dx, dy, speed, isEnemy);
+    }
+
+    init(x, y, dx, dy, speed, isEnemy = false) {
+        this.x = x;
+        this.y = y;
         this.dx = dx;
         this.dy = dy;
         this.speed = speed;
-        this.radius = 4;
+        this.radius = 4;  // Legacy (used for rendering arc)
+        this.width = 8;    // AABB hitbox width
+        this.height = 8;   // AABB hitbox height
         this.type = CONFIG.COLLISION_TYPES.PROJECTILE;
         this.isEnemy = isEnemy;
         this.life = 2.0;
         this.markedForDeletion = false;
         this.bounces = 0; // Number of times it can bounce
         this.alwaysUpdate = true; // Bullets fly across rooms
+
+        // Reset dynamic states
+        this.behavior = undefined;
+        this.orbitAngle = undefined;
+        this.isMelee = undefined;
+        this.isExplosive = undefined;
+        this.damage = undefined;
+        this.knockback = undefined;
+        this.color = undefined;
     }
 
     update(dt) {

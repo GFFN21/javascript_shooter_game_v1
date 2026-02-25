@@ -4,7 +4,7 @@ export default class Portal extends Entity {
     constructor(game, x, y) {
         super(game, x, y);
         this.image = new Image();
-        this.image.src = 'assets/sprites/mayan_portal.png?v=' + Date.now();
+        this.image.src = 'assets/sprites/new_mayan_portal.png?v=' + Date.now();
         this.loaded = false;
         this.image.onload = () => {
             this.loaded = true;
@@ -27,14 +27,13 @@ export default class Portal extends Entity {
 
     render(ctx) {
         if (this.loaded) {
-            ctx.save();
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#00ffff';
-
             // Draw centered
-            ctx.drawImage(this.image, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+            const drawX = this.x - this.width / 2;
+            const drawY = this.y - this.height / 2;
 
-            ctx.restore();
+            ctx.drawImage(this.image, drawX, drawY, this.width, this.height);
+
+
         } else {
             // Placeholder
             ctx.fillStyle = '#00ffff';

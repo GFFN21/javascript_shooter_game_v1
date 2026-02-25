@@ -29,11 +29,15 @@ export default class Player extends Entity {
         // Weapons (2 slots: Primary, Secondary)
         this.weapons = [null, null]; // 2 Slots
         this.currentWeaponIndex = 0;
-        this.weapons[0] = { name: 'Pistol', ...CONFIG.WEAPONS.PISTOL }; // Starter
+        this.weapons[0] = null; // Removed Starter Pistol
 
         this.switchWeaponTimer = 0;
 
         this.money = 0;
+
+        // Hitbox (AABB)
+        this.width = 24;
+        this.height = 24;
 
         // Sprite
         this.sprite = new Image();
@@ -208,7 +212,8 @@ export default class Player extends Entity {
         }
 
         this.dashDir = { x: dx, y: dy };
-        this.game.world.spawnParticles(this.x, this.y, '#0ff', 10);
+        // Initial dash burst (reduced from 10)
+        this.game.world.spawnParticles(this.x, this.y, '#0ff', 5);
     }
 
     updateMovement(dt) {
@@ -237,10 +242,7 @@ export default class Player extends Entity {
             moveY = this.dashDir.y * this.dashSpeed * dt;
             this.dashTimer -= dt;
 
-            // Trail
-            if (Math.random() < 0.5) {
-                this.game.world.spawnParticles(this.x, this.y, 'rgba(0, 255, 255, 0.5)', 1);
-            }
+            // Dash Trail logic removed to save CPU overhead
 
             if (this.dashTimer <= 0) {
                 this.isDashing = false;
@@ -278,12 +280,13 @@ export default class Player extends Entity {
     }
 
     checkWallCollision() {
-        const r = this.radius * 0.8; // bounding box half-width
+        const hW = this.width / 2;
+        const hH = this.height / 2;
         return this.game.world.checkWallCollision(
-            this.x - r,
-            this.y - r,
-            r * 2,
-            r * 2
+            this.x - hW,
+            this.y - hH,
+            this.width,
+            this.height
         );
     }
 
@@ -331,8 +334,8 @@ export default class Player extends Entity {
         for (let i = 0; i < stats.count; i++) {
             const angle = startAngle + (step * i);
 
-            const bullet = new Bullet(
-                this.game,
+            const bullet = this.game.world.bulletPool.get();
+            bullet.init(
                 this.x,
                 this.y,
                 Math.cos(angle),
@@ -378,8 +381,8 @@ export default class Player extends Entity {
         const range = 150;
         const force = 800; // Strong push
 
-        // Visual
-        this.game.world.spawnParticles(this.x, this.y, '#00ffff', 20);
+        // Visual nova (reduced from 20)
+        this.game.world.spawnParticles(this.x, this.y, '#00ffff', 8);
 
         this.game.world.entities.forEach(e => {
             if (e === this) return;
@@ -412,7 +415,7 @@ export default class Player extends Entity {
         ctx.ellipse(this.x, this.y + 25, 18, 9, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.save();
+
 
         // Render Size (~1.5x of 64)
         const drawW = 96;
@@ -439,7 +442,6 @@ export default class Player extends Entity {
             ctx.fill();
         }
 
-        ctx.restore();
         ctx.globalAlpha = 1.0;
 
         // Debug Hitbox

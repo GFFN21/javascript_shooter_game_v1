@@ -18,7 +18,7 @@ export const CONFIG = {
     },
 
     SPATIAL_HASH: {
-        CELL_SIZE: 80 // 2x Tile Size
+        CELL_SIZE: 120 // 3x Tile Size to reduce bucket overhead
     },
 
     // Collision Types

@@ -9,18 +9,54 @@ import MovementComponent from '../components/MovementComponent.js';
 import AttackComponent from '../components/AttackComponent.js';
 
 export default class Enemy extends Entity {
+    // Static cache for enemy frames to avoid redundant loads
+    static frameCache = new Map();
+
     constructor(game, x, y, stats = CONFIG.ENEMIES.WALKER) {
         super(game, x, y);
         this.speed = stats.speed;
         this.type = CONFIG.COLLISION_TYPES.ENEMY;
-        this.radius = 15;
+        this.radius = 16; // Legacy
+        this.width = 28;  // AABB hitbox width
+        this.height = 28; // AABB hitbox height
         this.hp = stats.hp;
-        // this.mass = 2; // In Entity
         this.dropValue = stats.dropValue;
         this.color = stats.color;
 
-        this.movement = new MovementComponent(this, 'CHASE');
-        this.attack = new AttackComponent(this, 'PISTOL');
+        // Visual Config
+        this.visual.mode = 'ANIMATED';
+        this.visual.fps = 8;
+        this.visual.scale = 2.6; // Increased by 1.1x per request
+        this.visual.offsetY = -10; // Adjust for feet position
+
+        this.assetBase = stats.assetBase || 'assets/sprites/zombie_decaying_archeologist';
+        this.direction = 'south';
+        this.animationState = 'walking-4-frames';
+
+        this.movement = new MovementComponent(this, stats.moveType || 'CHASE');
+        this.attack = new AttackComponent(this, stats.weaponType || 'PISTOL');
+
+        this.updateDirectionalFrames();
+    }
+
+    updateDirectionalFrames() {
+        const key = `${this.assetBase}/${this.animationState}/${this.direction}`;
+
+        if (Enemy.frameCache.has(key)) {
+            this.visual.frames = Enemy.frameCache.get(key);
+            return;
+        }
+
+        // Preload frames if not in cache
+        const frames = [];
+        for (let i = 0; i < 4; i++) {
+            const img = new Image();
+            img.src = `${this.assetBase}/animations/${this.animationState}/${this.direction}/frame_00${i}.png`;
+            frames.push(img);
+        }
+
+        Enemy.frameCache.set(key, frames);
+        this.visual.frames = frames;
     }
 
     update(dt) {
@@ -28,9 +64,36 @@ export default class Enemy extends Entity {
         if (this.movement) this.movement.update(dt);
         if (this.attack) this.attack.update(dt);
 
+        // Update direction based on movement
+        this.updateAnimationState();
+
         if (this.hp <= 0) {
             this.markedForDeletion = true;
             this.handleDeath();
+        }
+    }
+
+    updateAnimationState() {
+        // Calculate direction from movement velocity or aim
+        const target = this.game.world.player;
+        if (!target) return;
+
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const angle = Math.atan2(dy, dx);
+
+        const deg = (angle * 180 / Math.PI + 360) % 360;
+        const sector = Math.round(deg / 45) % 8;
+
+        const directions = [
+            'east', 'south-east', 'south', 'south-west',
+            'west', 'north-west', 'north', 'north-east'
+        ];
+
+        const newDir = directions[sector];
+        if (newDir !== this.direction) {
+            this.direction = newDir;
+            this.updateDirectionalFrames();
         }
     }
 
@@ -67,7 +130,7 @@ export default class Enemy extends Entity {
             if (other.isDashing) {
                 this.takeDamage(1);
                 this.applyKnockback(other.dashDir.x, other.dashDir.y, 800);
-                this.game.world.spawnParticles(this.x, this.y, '#ffffff', 10);
+                this.game.world.spawnParticles(this.x, this.y, '#ffffff', 5); // Reduced from 10
                 const hitAngle = Math.atan2(this.y - other.y, this.x - other.x);
                 this.x += Math.cos(hitAngle) * 20;
                 this.y += Math.sin(hitAngle) * 20;
@@ -76,29 +139,9 @@ export default class Enemy extends Entity {
                 other.applyKnockback(Math.cos(angle), Math.sin(angle), 300);
                 if (other.flashTimer <= 0) {
                     other.takeDamage(1);
-                    this.game.world.spawnParticles(other.x, other.y, '#ff0000', 5);
+                    this.game.world.spawnParticles(other.x, other.y, '#ff0000', 3); // Reduced from 5
                 }
             }
-        }
-    }
-
-
-
-
-    render(ctx) {
-        // If a sprite is assigned and fully loaded, draw it centered.
-        if (this.sprite && this.sprite.complete) {
-            const w = this.frameWidth || this.radius * 2;
-            const h = this.frameHeight || this.radius * 2;
-            const drawX = this.x - w / 2;
-            const drawY = this.y - h / 2;
-            ctx.drawImage(this.sprite, 0, 0, w, h, drawX, drawY, w, h);
-        } else {
-            // Fallback: simple colored circle.
-            ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : (this.color || '#ff0000');
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fill();
         }
     }
 }

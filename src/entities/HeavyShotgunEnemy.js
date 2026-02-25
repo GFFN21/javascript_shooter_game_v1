@@ -1,18 +1,17 @@
 import Enemy from './Enemy.js';
 import { CONFIG } from '../Config.js';
-import MovementComponent from '../components/MovementComponent.js';
-import AttackComponent from '../components/AttackComponent.js';
 
 export default class HeavyShotgunEnemy extends Enemy {
     constructor(game, x, y) {
-        super(game, x, y, CONFIG.ENEMIES.WALKER);
+        super(game, x, y, {
+            ...CONFIG.ENEMIES.WALKER,
+            hp: 8,
+            speed: 40,
+            dropValue: 50,
+            weaponType: 'HEAVY_SHOTGUN',
+            assetBase: 'assets/sprites/old_decayed_zombie_with_a_gun'
+        });
 
-        this.color = '#800080'; // Purple
-        this.speed = 40; // Very slow tank
-        this.hp = 8;
-        this.dropValue = 50;
-
-        this.movement = new MovementComponent(this, 'CHASE');
-        this.attack = new AttackComponent(this, 'HEAVY_SHOTGUN');
+        this.mass = 3; // Extra heavy
     }
 }

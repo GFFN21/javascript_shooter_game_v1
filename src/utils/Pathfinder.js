@@ -30,7 +30,7 @@ export default class Pathfinder {
         // Pre-calculate dynamic obstacles (Doors)
         // Optimization: Iterating all entities inside the A* loop is too slow (O(Nodes * Entities)).
         // We do it once here (O(Entities)).
-        for (const e of this.world.entities) {
+        for (const e of this.world.staticColliders) {
             if (e.constructor.name === 'Door' && e.isSolid()) {
                 const tx = Math.floor(e.x / this.map.tileSize);
                 const ty = Math.floor(e.y / this.map.tileSize);

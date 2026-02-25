@@ -17,6 +17,7 @@ import Bullet from '../entities/Bullet.js';
 import Altar from '../entities/Altar.js';
 import TrapDoor from '../entities/TrapDoor.js'; // Replacement for Portal
 import SpatialHash from '../utils/SpatialHash.js';
+import PoolManager from '../utils/PoolManager.js';
 import { CONFIG } from '../Config.js';
 
 export default class World {
@@ -25,9 +26,14 @@ export default class World {
         this.savedInventory = savedInventory;
         this.map = new Map(game);
         this.entities = [];
+        this.staticColliders = []; // Cached array for Doors and Altars
         this.particles = [];
         this.player = null;
         this.spatialHash = new SpatialHash(CONFIG.SPATIAL_HASH.CELL_SIZE);
+
+        // Object Pools
+        this.particlePool = new PoolManager(() => new Particle(this.game, 0, 0), 500);
+        this.bulletPool = new PoolManager(() => new Bullet(this.game, 0, 0, 0, 0, 0), 200);
 
         // Debug Stats
         this.collisionChecks = 0;
@@ -45,15 +51,40 @@ export default class World {
 
         if (!this.player) {
             this.player = new Player(this.game, spawnX, spawnY);
-            // Restore inventory if exists
+            // Restore full player data across level transitions
             if (this.savedInventory) {
-                console.warn("Restoring Inventory:", this.savedInventory);
-                this.player.inventory = this.savedInventory;
+                console.warn("Restoring Player Data:", this.savedInventory);
+                this.player.inventory = this.savedInventory.inventory || new Array(8).fill(null);
+                this.player.equipment = this.savedInventory.equipment || new Array(4).fill(null);
+
+                this.player.weapons = [null, null];
+                if (this.savedInventory.weapons) {
+                    for (let i = 0; i < 2; i++) {
+                        const w = this.savedInventory.weapons[i];
+                        if (w) {
+                            // Extract identifier string and rebuild fresh Entity Object for UI rendering
+                            const typeStr = typeof w === 'string' ? w : w.weaponType;
+                            this.player.weapons[i] = new WeaponItem(this.game, 0, 0, typeStr);
+                        }
+                    }
+                }
+
+                this.player.currentWeaponIndex = this.savedInventory.currentWeaponIndex || 0;
+
+                if (this.savedInventory.maxHp !== undefined) this.player.maxHp = this.savedInventory.maxHp;
+                if (this.savedInventory.hp !== undefined) this.player.hp = this.savedInventory.hp;
+                if (this.savedInventory.money !== undefined) this.player.money = this.savedInventory.money;
+
+                // Force UI to redraw in case cache matched the old array references
+                if (this.game.ui) {
+                    this.game.ui.lastWeapon0 = undefined;
+                    this.game.ui.updateWeaponHUD();
+                }
             }
         } else {
             this.player.x = spawnX;
             this.player.y = spawnY;
-            // Health persists
+            // Health persists naturally if player object is kept (which we don't do anymore, but good to note)
         }
 
         this.addEntity(this.player);
@@ -263,18 +294,24 @@ export default class World {
 
     nextLevel() {
         this.game.level++; // Increment Level
-        this.entities = []; // clear all
-        this.map = new Map(this.game); // regen map
-        this.init(); // re-init (reuses player)
+
+        // Let the asynchronous Reload State handle tearing down the old map
+        // and generating the new one to prevent main-thread freezing.
+        this.game.stateMachine.transition('RELOAD');
     }
 
     addEntity(entity) {
         this.entities.push(entity);
+        if (entity.constructor.name === 'Door' || entity.constructor.name === 'Altar') {
+            this.staticColliders.push(entity);
+        }
     }
 
     spawnParticles(x, y, color, count) {
         for (let i = 0; i < count; i++) {
-            this.particles.push(new Particle(this.game, x, y, color));
+            const p = this.particlePool.get();
+            p.init(x, y, { color: color });
+            this.particles.push(p);
         }
     }
 
@@ -288,9 +325,22 @@ export default class World {
         });
         this.particles.forEach(p => p.update(dt));
 
-        // Remove dead entities
-        this.entities = this.entities.filter(e => !e.markedForDeletion);
-        this.particles = this.particles.filter(p => !p.markedForDeletion);
+        // Remove dead entities and return to pool
+        this.entities = this.entities.filter(e => {
+            if (e.markedForDeletion) {
+                if (e.constructor.name === 'Bullet') this.bulletPool.release(e);
+                return false;
+            }
+            return true;
+        });
+
+        this.particles = this.particles.filter(p => {
+            if (p.markedForDeletion) {
+                this.particlePool.release(p);
+                return false;
+            }
+            return true;
+        });
 
         this.checkCollisions();
         this.checkExit();
@@ -489,7 +539,7 @@ export default class World {
 
                 this.collisionChecks++;
 
-                if (this.checkCircleCollision(a, b)) {
+                if (this.checkRectCollision(a, b)) {
                     if (a.onCollision) a.onCollision(b);
                     // We don't force b.onCollision(a) here because b will have its own turn loop?
                     // Actually b might be later in 'this.entities'.
@@ -549,13 +599,11 @@ export default class World {
                     bullet.dy = -bullet.dy;
                     bullet.y = backY;
                 }
-                this.spawnParticles(bullet.x, bullet.y, '#fff', 3);
             } else {
                 if (bullet.isExplosive) {
                     this.explode(bullet.x, bullet.y, 80, bullet.damage || 2);
                 }
                 bullet.markedForDeletion = true;
-                this.spawnParticles(bullet.x, bullet.y, '#aaa', 5);
             }
         }
     }
@@ -620,8 +668,10 @@ export default class World {
         // 1. Map Tiles
         if (this.map.checkCollision(x, y, w, h)) return true;
 
-        // 2. Entities (Doors, Altar)
-        for (const e of this.entities) {
+        // 2. Static Entities (Doors, Altar) - Fast Path
+        for (const e of this.staticColliders) {
+            if (e.markedForDeletion) continue; // Safety check
+
             const isDoor = e.constructor.name === 'Door' && e.isSolid();
             const isAltar = e.constructor.name === 'Altar';
 
@@ -654,11 +704,11 @@ export default class World {
         return false;
     }
 
-    checkCircleCollision(a, b) {
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        return dist < (a.radius + b.radius);
+    checkRectCollision(a, b) {
+        return (a.x - a.width / 2 < b.x + b.width / 2 &&
+            a.x + a.width / 2 > b.x - b.width / 2 &&
+            a.y - a.height / 2 < b.y + b.height / 2 &&
+            a.y + a.height / 2 > b.y - b.height / 2);
     }
 
     render(ctx) {
@@ -668,12 +718,42 @@ export default class World {
 
         // Measure Entities (Sort + Draw)
         const t1 = performance.now();
-        this.entities.sort((a, b) => a.sortY - b.sortY);
-        this.entities.forEach(e => e.render(ctx));
+
+        // 1. Frustum Culling
+        const zoom = 1.5; // From Camera.js
+        const viewW = this.game.width / zoom;
+        const viewH = this.game.height / zoom;
+        const pad = 150; // Buffer padding for large sprites and glows
+        const cam = this.game.camera;
+        const minX = cam.x - viewW / 2 - pad;
+        const maxX = cam.x + viewW / 2 + pad;
+        const minY = cam.y - viewH / 2 - pad;
+        const maxY = cam.y + viewH / 2 + pad;
+
+        const visibleEntities = [];
+        for (let i = 0; i < this.entities.length; i++) {
+            const e = this.entities[i];
+            const w = e.width || 50;
+            const h = e.height || 50;
+            if (e.x + w / 2 >= minX && e.x - w / 2 <= maxX && e.y + h / 2 >= minY && e.y - h / 2 <= maxY) {
+                visibleEntities.push(e);
+            }
+        }
+
+        // 2. Sort ONLY visible entities (Huge optimization!)
+        visibleEntities.sort((a, b) => a.sortY - b.sortY);
+        visibleEntities.forEach(e => e.render(ctx));
 
         // Measure Particles
         const t2 = performance.now();
-        this.particles.forEach(p => p.render(ctx));
+
+        // 3. Cull Particles
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) {
+                p.render(ctx);
+            }
+        }
 
         // Measure Walls
         const t3 = performance.now();

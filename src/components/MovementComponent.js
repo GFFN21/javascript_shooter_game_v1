@@ -43,7 +43,7 @@ export default class MovementComponent {
         // Path Re-calculation
         this.pathTimer -= dt;
         if (this.pathTimer <= 0) {
-            this.pathTimer = 0.5; // Every 500ms
+            this.pathTimer = 0.5 + Math.random() * 0.2; // Jitter to prevent massive synced A* spikes
             this.path = this.pathfinder.findPath(this.entity.x, this.entity.y, target.x, target.y);
             // Remove first node (current tile)
             if (this.path.length > 0) this.path.shift();

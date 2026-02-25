@@ -12,6 +12,7 @@ import LoadingState from '../states/LoadingState.js';
 import PlayingState from '../states/PlayingState.js';
 import PausedState from '../states/PausedState.js';
 import GameOverState from '../states/GameOverState.js';
+import ReloadState from '../states/ReloadState.js';
 
 export default class Game {
     constructor(canvas) {
@@ -58,6 +59,7 @@ export default class Game {
         this.stateMachine.register(new PausedState('skills'));
         this.stateMachine.register(new PausedState('abilities'));
         this.stateMachine.register(new GameOverState());
+        this.stateMachine.register(new ReloadState());
 
         // Start in BOOT state (will auto-transition to SAVE_SELECT)
         this.stateMachine.transition('BOOT');
@@ -233,10 +235,19 @@ export default class Game {
         this.ctx.fillStyle = '#000000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // If active state hijacks the render loop (like LoadingState)
+        if (this.stateMachine && this.stateMachine.currentState && typeof this.stateMachine.currentState.render === 'function') {
+            this.stateMachine.currentState.render(this, this.ctx);
+            return;
+        }
+
         this.ctx.save();
+        this.ctx.imageSmoothingEnabled = false;
         this.camera.apply(this.ctx);
 
-        this.world.render(this.ctx);
+        if (this.world) {
+            this.world.render(this.ctx);
+        }
 
         this.ctx.restore();
     }

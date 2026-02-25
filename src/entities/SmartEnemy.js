@@ -1,20 +1,15 @@
 import Enemy from '../entities/Enemy.js';
 import { CONFIG } from '../Config.js';
-import MovementComponent from '../components/MovementComponent.js';
-import AttackComponent from '../components/AttackComponent.js';
 
 export default class SmartEnemy extends Enemy {
     constructor(game, x, y) {
-        super(game, x, y, CONFIG.ENEMIES.WALKER);
-
-        // Stats Override
-        this.color = '#9900ff';
-        this.hp = 5;
-        this.dropValue = 20;
-        this.speed = 75;
-
-        // Components
-        this.movement = new MovementComponent(this, 'SMART');
-        this.attack = new AttackComponent(this, 'PISTOL');
+        super(game, x, y, {
+            ...CONFIG.ENEMIES.WALKER,
+            hp: 5,
+            speed: 75,
+            dropValue: 20,
+            moveType: 'SMART',
+            assetBase: 'assets/sprites/old_decayed_zombie_with_a_gun'
+        });
     }
 }

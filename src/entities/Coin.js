@@ -1,67 +1,32 @@
-import Entity from './Entity.js';
+import Item from './Item.js';
 import { CONFIG } from '../Config.js';
 
-export default class Coin extends Entity {
+export default class Coin extends Item {
     constructor(game, x, y, value) {
-        super(game, x, y);
+        // Gold glow
+        super(game, x, y, {
+            glowColor: '#FFD700',
+            glowAmount: 10,
+            scale: (24 * 4.5) / 512, // The PNG is 512x512, scaled to ~120x120 size (5x larger)
+            magnetic: true
+        });
+
         this.value = value;
-        this.type = CONFIG.COLLISION_TYPES.ITEM;
         this.radius = 8;
-        this.color = '#FFD700'; // Gold
 
-        // Simple bobbing animation
-        this.bobOffset = 0;
-        this.bobSpeed = 5;
-        this.baseY = y;
+        // Add Sprite
+        this.visual.mode = 'SPRITE';
+        this.visual.sprite = new Image();
+        this.visual.sprite.src = 'assets/sprites/coin sprites/Coin-Sprite-0001.png';
+
+        this.color = '#FFD700'; // Fallback
     }
 
-    update(dt) {
-        this.bobOffset += this.bobSpeed * dt;
-        this.y = this.baseY + Math.sin(this.bobOffset) * 3;
+    onCollect(player) {
+        player.money += this.value; // Run money
+        this.game.bank += this.value; // Persistent Bank
+        this.game.saveProgress();
 
-        // Magnet effect (move towards player if close)
-        if (this.game.world.player) {
-            const p = this.game.world.player;
-            const dx = p.x - this.x;
-            const dy = p.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < 100) {
-                // Determine speed based on distance (faster when closer)
-                const speed = 200 * dt;
-                const angle = Math.atan2(dy, dx);
-                this.x += Math.cos(angle) * speed;
-                this.y += Math.sin(angle) * speed;
-                this.baseY = this.y; // Update base for bobbing
-            }
-        }
-    }
-
-
-    onCollision(other) {
-        if (other === this.game.world.player && !this.markedForDeletion) {
-            other.money += this.value; // Run money
-            this.game.bank += this.value; // Persistent Bank
-            this.game.saveProgress();
-
-            this.game.world.spawnParticles(this.x, this.y, '#FFD700', 5);
-            this.markedForDeletion = true;
-        }
-    }
-
-    render(ctx) {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.strokeStyle = '#DAA520';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Shine
-        ctx.beginPath();
-        ctx.arc(this.x - 2, this.y - 2, 2, 0, Math.PI * 2);
-        ctx.fillStyle = '#FFF';
-        ctx.fill();
+        super.onCollect(player);
     }
 }
