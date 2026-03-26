@@ -15,8 +15,16 @@ export default class PlayingState extends State {
         game.isPaused = false;
         game.isGameOver = false;
 
-        // Start fade in from black
-        this.fadeAlpha = 1.0;
+        // Start fade in from black only for major transitions
+        // We SKIP the fade when returning from simple UI/Pause menus
+        const source = game.stateMachine.previousStateName;
+        const transitionsNeedingFade = ['LOADING', 'RELOAD', 'LEVEL_TRANSITION', 'SAVE_SELECT', null];
+        
+        if (transitionsNeedingFade.includes(source)) {
+            this.fadeAlpha = 1.0;
+        } else {
+            this.fadeAlpha = 0.0;
+        }
 
         // Start the game loop if it isn't running
         if (!game.animationFrameId) {

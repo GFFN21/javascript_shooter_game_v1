@@ -141,11 +141,9 @@ export default class Entity {
                 ctx.drawImage(img, drawX - w / 2, drawY - h / 2, w, h);
             }
         } else {
-            // Fallback: simple filled circle
+            // Fallback: simple filled rect
             ctx.fillStyle = this.color || 'rgba(200,200,200,0.8)';
-            ctx.beginPath();
-            ctx.arc(this.x, drawY, this.radius, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillRect(this.x - this.width / 2, drawY - this.height / 2, this.width, this.height);
         }
 
 

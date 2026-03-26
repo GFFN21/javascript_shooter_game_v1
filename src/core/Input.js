@@ -16,6 +16,14 @@ export default class Input {
         } else {
             // PC-only: bind keyboard and mouse
             window.addEventListener('keydown', e => {
+                if (e.repeat) return; // Prevent auto-repeat hold from rapid-firing toggles
+                if (e.code === 'F3') e.preventDefault(); // Prevent browser search
+                
+                // Directly toggle the global debug state immediately without waiting for game loop sync
+                if (e.code === 'F3' || e.code === 'KeyH') {
+                    this.game.showDebugHitboxes = !this.game.showDebugHitboxes;
+                }
+
                 this.keys.add(e.code);
                 this.keysPressed.add(e.code);
             });
@@ -130,6 +138,11 @@ export default class Input {
         if (Platform.isMobile) return 1; // Touch button always cycles forward
         if (this.isPressed('ArrowLeft')) return -1;
         return 1;
+    }
+
+    // ---- Debug ----
+    isTogglingDebug() {
+        return this.isPressed('F3') || this.isPressed('KeyH');
     }
 
     // ---- Utility ----

@@ -38,6 +38,12 @@ export default class LoadingState extends State {
                 this.savedInventory = game.world.player.inventory;
             }
         }
+
+        // CRITICAL FIX: The SaveSelect screen kills the animation loop to save resources.
+        // We MUST revive it here, otherwise the engine will hang indefinitely on this loading screen.
+        if (!game.animationFrameId) {
+            game.start();
+        }
     }
 
     update(game, dt) {

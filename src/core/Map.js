@@ -80,19 +80,27 @@ export default class Map {
             this.floorCtx = this.floorCanvas.getContext('2d');
             this.floorCtx.imageSmoothingEnabled = false;
 
-            this.wallCanvas = document.createElement('canvas');
-            this.wallCanvas.width = this.width * this.tileSize;
-            this.wallCanvas.height = this.height * this.tileSize;
-            this.wallCtx = this.wallCanvas.getContext('2d');
-            this.wallCtx.imageSmoothingEnabled = false;
+            this.bgWallCanvas = document.createElement('canvas');
+            this.bgWallCanvas.width = this.width * this.tileSize;
+            this.bgWallCanvas.height = this.height * this.tileSize;
+            this.bgWallCtx = this.bgWallCanvas.getContext('2d');
+            this.bgWallCtx.imageSmoothingEnabled = false;
+
+            this.fgWallCanvas = document.createElement('canvas');
+            this.fgWallCanvas.width = this.width * this.tileSize;
+            this.fgWallCanvas.height = this.height * this.tileSize;
+            this.fgWallCtx = this.fgWallCanvas.getContext('2d');
+            this.fgWallCtx.imageSmoothingEnabled = false;
         }
 
         const fCtx = this.floorCtx;
-        const wCtx = this.wallCtx;
+        const bgCtx = this.bgWallCtx;
+        const fgCtx = this.fgWallCtx;
 
         // Clear
         fCtx.clearRect(0, 0, this.floorCanvas.width, this.floorCanvas.height);
-        wCtx.clearRect(0, 0, this.wallCanvas.width, this.wallCanvas.height);
+        bgCtx.clearRect(0, 0, this.bgWallCanvas.width, this.bgWallCanvas.height);
+        fgCtx.clearRect(0, 0, this.fgWallCanvas.width, this.fgWallCanvas.height);
 
         // Loop ALL tiles
         for (let y = 0; y < this.height; y++) {
@@ -144,9 +152,15 @@ export default class Map {
                     const src = this.getTileSrc(id);
                     const srcFront = this.getTileSrc(currentFrontFaceId);
 
-                    // Draw to Wall Canvas
-                    wCtx.drawImage(this.tileset, srcFront.x, srcFront.y, 128, 128, px, py + this.tileSize - 20, this.tileSize, 20);
-                    wCtx.drawImage(this.tileset, src.x, src.y, 128, 128, px, py - 20, this.tileSize, this.tileSize);
+                    // Select Canvas (Depth Sorting)
+                    // If there is floor immediately North (up), it's a "South Wall" from the room's perspective.
+                    // The player can stand *behind* it, so it must render in the *Foreground*.
+                    // Otherwise, it's a North/East/West wall, and should render in the *Background*.
+                    const targetCtx = fUp ? fgCtx : bgCtx;
+
+                    // Draw to selected Canvas
+                    targetCtx.drawImage(this.tileset, srcFront.x, srcFront.y, 128, 128, px, py + this.tileSize - 20, this.tileSize, 20);
+                    targetCtx.drawImage(this.tileset, src.x, src.y, 128, 128, px, py - 20, this.tileSize, this.tileSize);
                 }
             }
         }
@@ -162,9 +176,14 @@ export default class Map {
         this.renderLayer(ctx, this.floorCanvas);
     }
 
-    renderWalls(ctx) {
-        if (!this.wallCanvas) return;
-        this.renderLayer(ctx, this.wallCanvas);
+    renderBgWalls(ctx) {
+        if (!this.bgWallCanvas) return;
+        this.renderLayer(ctx, this.bgWallCanvas);
+    }
+
+    renderFgWalls(ctx) {
+        if (!this.fgWallCanvas) return;
+        this.renderLayer(ctx, this.fgWallCanvas);
     }
 
     renderLayer(ctx, canvas) {

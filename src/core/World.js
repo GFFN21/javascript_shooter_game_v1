@@ -19,6 +19,7 @@ import TrapDoor from '../entities/TrapDoor.js'; // Replacement for Portal
 import SpatialHash from '../utils/SpatialHash.js';
 import PoolManager from '../utils/PoolManager.js';
 import { CONFIG } from '../Config.js';
+import DebugRenderer from './DebugRenderer.js';
 
 export default class World {
     constructor(game, savedInventory = null) {
@@ -422,10 +423,12 @@ export default class World {
             // Check door overlap (Safety)
             const stuckInDoor = currentRoom.doors.some(d => {
                 const pad = 10;
-                return (this.player.x + this.player.radius > d.x + pad &&
-                    this.player.x - this.player.radius < d.x + d.width - pad &&
-                    this.player.y + this.player.radius > d.y + pad &&
-                    this.player.y - this.player.radius < d.y + d.height - pad);
+                const hW = this.player.width / 2;
+                const hH = this.player.height / 2;
+                return (this.player.x + hW > d.x + pad &&
+                    this.player.x - hW < d.x + d.width - pad &&
+                    this.player.y + hH > d.y + pad &&
+                    this.player.y - hH < d.y + d.height - pad);
             });
 
             if (stuckInDoor) return;
@@ -715,6 +718,7 @@ export default class World {
         // Measure Floor
         const t0 = performance.now();
         this.map.renderFloor(ctx);
+        this.map.renderBgWalls(ctx); // North / Background walls (behind player)
 
         // Measure Entities (Sort + Draw)
         const t1 = performance.now();
@@ -744,6 +748,11 @@ export default class World {
         visibleEntities.sort((a, b) => a.sortY - b.sortY);
         visibleEntities.forEach(e => e.render(ctx));
 
+        // Temporary Debug Rendering for the User to verify Rectangular Hitboxes
+        if (this.game.showDebugHitboxes) {
+            DebugRenderer.renderHitboxes(ctx, visibleEntities);
+        }
+
         // Measure Particles
         const t2 = performance.now();
 
@@ -757,7 +766,7 @@ export default class World {
 
         // Measure Walls
         const t3 = performance.now();
-        this.map.renderWalls(ctx);
+        this.map.renderFgWalls(ctx); // South / Foreground walls (in front of player)
         const t4 = performance.now();
 
         // Store Stats for Game to read

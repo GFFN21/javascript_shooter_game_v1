@@ -36,8 +36,8 @@ export default class Player extends Entity {
         this.money = 0;
 
         // Hitbox (AABB)
-        this.width = 24;
-        this.height = 24;
+        this.width = 20;
+        this.height = 42;
 
         // Sprite
         this.sprite = new Image();
@@ -409,19 +409,19 @@ export default class Player extends Entity {
     render(ctx) {
         if (this.flashTimer > 0) ctx.globalAlpha = 0.5;
 
-        // Shadow
+        // Shadow - tighter to the character's feet base
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.beginPath();
-        ctx.ellipse(this.x, this.y + 25, 18, 9, 0, 0, Math.PI * 2);
+        ctx.ellipse(this.x, this.y + 19, 14, 7, 0, 0, Math.PI * 2);
         ctx.fill();
 
+        // Render Size (Scaled to 80x80)
+        const drawW = 80;
+        const drawH = 80;
 
-
-        // Render Size (~1.5x of 64)
-        const drawW = 96;
-        const drawH = 96;
         let drawX = this.x - drawW / 2;
-        let drawY = this.y - drawH / 2 - 25;
+        // Fine-tuning: Narrowing the box and nudging the sprite up a few more pixels (-8)
+        let drawY = this.y - drawH / 2;
 
         // Calculate Row
         const rowOffset = this.state === 'run' ? 8 : 0;
@@ -435,19 +435,11 @@ export default class Player extends Entity {
                 drawW, drawH
             );
         } else {
-            // Fallback: simple filled circle using default color
+            // Fallback: simple filled rect using default color
             ctx.fillStyle = this.color || 'rgba(200,200,200,0.8)';
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
         }
 
         ctx.globalAlpha = 1.0;
-
-        // Debug Hitbox
-        ctx.strokeStyle = 'green';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.stroke();
     }
 }
