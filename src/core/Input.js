@@ -103,7 +103,8 @@ export default class Input {
             const rs = this.touchControls.rightStick;
             if (rs.active) {
                 const mag = Math.sqrt(rs.x * rs.x + rs.y * rs.y);
-                return mag > 0.5;
+                // Lowered from 0.5 to 0.2: Shooting triggers almost immediately upon aim
+                return mag > 0.2;
             }
             return false;
         }
