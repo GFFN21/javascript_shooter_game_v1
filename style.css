@@ -271,7 +271,6 @@ canvas {
 
 /* Grids */
 /* Responsive Grids */
-.grid-2x2,
 .grid-4x2,
 .grid-3x1,
 .grid-2x1 {
@@ -279,6 +278,14 @@ canvas {
     grid-gap: 10px;
     /* Auto-fit columns with a minimum width of 60px */
     grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+}
+
+/* Specific overrides for visual consistency */
+.grid-2x2 {
+    display: grid;
+    grid-gap: 10px;
+    /* Strictly force 2 columns for a perfect square */
+    grid-template-columns: repeat(2, 60px);
 }
 
 /* Specific overrides for visual consistency if needed, but auto-fit handles most cases */

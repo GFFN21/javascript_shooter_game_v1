@@ -125,6 +125,16 @@ export default class UIManager {
 
             this.bindButton(slotEl, () => {
                 this.game.loadGame(id);
+                
+                // Attempt to force immersive fullscreen on Mobile devices to hide the URL searchbar
+                if (document.body.classList.contains('mobile')) {
+                    const docEl = document.documentElement;
+                    if (docEl.requestFullscreen) {
+                        docEl.requestFullscreen().catch(() => {}); // Catch prevents console spam if denied
+                    } else if (docEl.webkitRequestFullscreen) { // iOS Safari fallback
+                        docEl.webkitRequestFullscreen().catch(() => {});
+                    }
+                }
             });
 
             this.saveSlotsContainer.appendChild(slotEl);

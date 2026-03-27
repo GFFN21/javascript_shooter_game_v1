@@ -20,8 +20,8 @@ export default class Player extends Entity {
         this.isDashing = false;
         this.dashDir = { x: 0, y: 0 };
 
-        // Inventory (8 slots)
-        this.inventory = new Array(8).fill(null);
+        // Inventory (4 slots)
+        this.inventory = new Array(4).fill(null);
 
         // Equipment (4 slots: Weapon, Armor, Accessory, etc.)
         this.equipment = new Array(4).fill(null);
