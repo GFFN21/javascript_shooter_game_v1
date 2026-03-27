@@ -36,6 +36,7 @@ body {
     justify-content: center;
     align-items: center;
     height: 100vh;
+    height: 100dvh; /* Force modern mobile browsers to ignore URL bar */
 }
 
 #game-container {
@@ -838,33 +839,32 @@ body.mobile .modal-buttons button {
     z-index: 100;
 }
 
-/* Joysticks (Scaled down 90%) */
+/* Joysticks */
 .touch-zone {
     position: absolute;
-    width: 135px;
-    height: 135px;
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
     border: 2px solid rgba(255, 255, 255, 0.3);
     pointer-events: auto;
     touch-action: none;
-    bottom: 50px;
-    /* Default bottom anchor */
+    bottom: 60px;
 }
 
 .touch-zone.left {
-    left: 50px;
+    left: 80px;
 }
 
 .touch-zone.right {
-    right: 50px;
+    right: 80px;
 }
 
 .touch-puck {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 65px;
-    height: 65px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background-color: rgba(255, 255, 255, 0.5);
     transform: translate(-50%, -50%);
@@ -960,17 +960,17 @@ body.mobile {
     }
 
     .touch-zone {
-        width: 108px;
-        height: 108px;
-        bottom: 20px;
+        width: 80px;
+        height: 80px;
+        bottom: 40px;
     }
 
     .touch-zone.left {
-        left: 20px;
+        left: 50px;
     }
 
     .touch-zone.right {
-        right: 20px;
+        right: 50px;
     }
 
     .touch-btn.dash {

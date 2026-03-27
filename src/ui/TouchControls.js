@@ -157,7 +157,7 @@ export default class TouchControls {
     }
 
     updateStick(clientX, clientY, zone, data, puck) {
-        const maxDist = 50;
+        const maxDist = 25; // Halved from 50: Max speed reached with very little physical drag
         const rect = zone.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
