@@ -36,6 +36,12 @@ export default class Enemy extends Entity {
         this.movement = new MovementComponent(this, stats.moveType || 'CHASE');
         this.attack = new AttackComponent(this, stats.weaponType || 'PISTOL');
 
+        // Behavioral FSM
+        this.behaviorState = 'SPAWN';
+        this.stateTimer = 0;
+        this.attackRange = stats.attackRange || 200; // Default range if not specified
+        this.stunDuration = 1.0;
+
         this.updateDirectionalFrames();
     }
 
@@ -61,8 +67,41 @@ export default class Enemy extends Entity {
 
     update(dt) {
         super.update(dt);
-        if (this.movement) this.movement.update(dt);
-        if (this.attack) this.attack.update(dt);
+        this.stateTimer += dt;
+        
+        switch(this.behaviorState) {
+            case 'SPAWN':
+                // Spawning animation phase. No movement, no attacking.
+                // Could flash opacity or rise from ground here.
+                if (this.stateTimer > 1.0) this.changeState('CHASE');
+                break;
+                
+            case 'CHASE':
+                if (this.movement) this.movement.update(dt);
+                // Transition to attack if in range
+                if (this.distanceToPlayer() < this.attackRange) {
+                    this.changeState('ATTACK');
+                }
+                break;
+                
+            case 'ATTACK':
+                // Allow movement during attack (can adjust per enemy subclass later)
+                if (this.movement) this.movement.update(dt);
+                if (this.attack) this.attack.update(dt);
+                
+                // Transition back to chase if player escapes range
+                if (this.distanceToPlayer() >= this.attackRange) {
+                    this.changeState('CHASE');
+                }
+                break;
+                
+            case 'STUNNED':
+                // No movement, no attacking
+                if (this.stateTimer > this.stunDuration) {
+                    this.changeState('CHASE');
+                }
+                break;
+        }
 
         // Update direction based on movement
         this.updateAnimationState();
@@ -95,6 +134,21 @@ export default class Enemy extends Entity {
             this.direction = newDir;
             this.updateDirectionalFrames();
         }
+    }
+
+    // --- FSM Utilities ---
+    distanceToPlayer() {
+        const p = this.game.world.player;
+        if (!p) return Infinity;
+        const dx = p.x - this.x;
+        const dy = p.y - this.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    changeState(newState) {
+        if (this.behaviorState === newState) return;
+        this.behaviorState = newState;
+        this.stateTimer = 0;
     }
 
     handleDeath() {

@@ -34,9 +34,15 @@ export default class LoadingState extends State {
         this.timer = 0;
 
         if (this.mode === 'restart') {
-            if (game.world && game.world.player) {
-                this.savedInventory = game.world.player.inventory;
+            if (game.world && game.world.player && game.unlockedSkills.has('immortal_backpack')) {
+                this.savedInventory = game.serializeInventory();
+            } else {
+                this.savedInventory = null;
             }
+        } else {
+            // mode === 'load'
+            this.savedInventory = game.savedInventory;
+            game.savedInventory = null; // Consume
         }
 
         // CRITICAL FIX: The SaveSelect screen kills the animation loop to save resources.

@@ -55,10 +55,6 @@ export default class TouchControls {
             if (this.game.ui) this.game.ui.toggleStats();
         }, 'stats');
 
-        this.createMenuButton('SKILLS', () => {
-            if (this.game.ui) this.game.ui.toggleAbilities();
-        }, 'skills');
-
         document.body.appendChild(this.container);
     }
 

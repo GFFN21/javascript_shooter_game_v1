@@ -18,6 +18,31 @@ export default class Altar extends Entity {
         return -9999; // Force Floor Layer (Player always on top)
     }
 
+    update(dt) {
+        super.update(dt);
+        
+        // Check proximity to player
+        this.canInteract = false;
+        if (this.game.world.player) {
+            const p = this.game.world.player;
+            const dx = p.x - this.x;
+            const dy = p.y - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist < 100) { // Interaction Range
+                this.canInteract = true;
+            }
+        }
+    }
+
+    interact() {
+        // Triggered by PlayingState when E is pressed
+        this.game.grantRandomSkill();
+        
+        // Spawn particles on interaction
+        this.game.world.spawnParticles(this.x, this.y, '#00ffff', 30);
+    }
+
     render(ctx) {
         if (this.image.complete) {
             // Draw centered
@@ -31,13 +56,16 @@ export default class Altar extends Entity {
             ctx.fillRect(this.x - 20, this.y - 20, 40, 40);
         }
 
-        // Optional: Glow effect
-        // ctx.shadowBlur = 20;
-        // ctx.shadowColor = "cyan";
-        // ctx.beginPath();
-        // ctx.arc(this.x, this.y, 10, 0, Math.PI*2);
-        // ctx.fillStyle = "rgba(0, 255, 255, 0.5)";
-        // ctx.fill();
-        // ctx.shadowBlur = 0;
+        // Interaction Prompt
+        if (this.canInteract) {
+            ctx.save();
+            ctx.fillStyle = "white";
+            ctx.font = "bold 16px 'Courier New'";
+            ctx.textAlign = "center";
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "black";
+            ctx.fillText("PRESS [E] TO PRAY", this.x, this.y - this.height/2 - 20);
+            ctx.restore();
+        }
     }
 }

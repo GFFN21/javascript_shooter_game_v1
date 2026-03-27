@@ -36,8 +36,8 @@ export default class Player extends Entity {
         this.money = 0;
 
         // Hitbox (AABB)
-        this.width = 20;
-        this.height = 42;
+        this.width = 12;
+        this.height = 24;
 
         // Sprite
         this.sprite = new Image();

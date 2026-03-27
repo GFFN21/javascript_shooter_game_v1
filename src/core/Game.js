@@ -13,6 +13,7 @@ import PlayingState from '../states/PlayingState.js';
 import PausedState from '../states/PausedState.js';
 import GameOverState from '../states/GameOverState.js';
 import ReloadState from '../states/ReloadState.js';
+import SkillAcquiredState from '../states/SkillAcquiredState.js';
 
 export default class Game {
     constructor(canvas) {
@@ -60,6 +61,7 @@ export default class Game {
         this.stateMachine.register(new PausedState('abilities'));
         this.stateMachine.register(new GameOverState());
         this.stateMachine.register(new ReloadState());
+        this.stateMachine.register(new SkillAcquiredState());
 
         // Start in BOOT state (will auto-transition to SAVE_SELECT)
         this.stateMachine.transition('BOOT');
@@ -86,6 +88,11 @@ export default class Game {
             // Restore Level and Score for continuity
             this.level = data.gameplay.level || 1;
             this.score = data.gameplay.score || 0;
+
+            // Restore Inventory if present
+            if (data.inventory) {
+                this.savedInventory = data.inventory;
+            }
         }
 
         // Transition to LOADING with load payload
@@ -143,12 +150,58 @@ export default class Game {
                 level: this.level,
                 score: this.score
             },
-            inventory: {
-                // Future: save current player backpack/weapons here
-            }
+            inventory: this.serializeInventory()
         };
 
         SaveManager.saveSlot(this.currentSlotId, data);
+    }
+
+    serializeInventory() {
+        if (!this.world || !this.world.player) return null;
+        const p = this.world.player;
+
+        const serialize = (item) => {
+            if (!item) return null;
+            // For weapons, save the weapon type string
+            if (item.weaponType) return item.weaponType;
+            // For other items, we might need a name or type (Coins/HealthPacks usually aren't in backpack yet, but just in case)
+            if (item.name) return item.name;
+            return item.constructor.name;
+        };
+
+        return {
+            backpack: p.inventory.map(serialize),
+            equipment: p.equipment.map(serialize),
+            weapons: p.weapons.map(serialize),
+            currentWeaponIndex: p.currentWeaponIndex || 0,
+            hp: p.hp,
+            maxHp: p.maxHp,
+            money: p.money
+        };
+    }
+
+    grantRandomSkill() {
+        const allSkills = Object.values(CONFIG.SKILLS);
+        const unowned = allSkills.filter(s => !this.unlockedSkills.has(s.id));
+        
+        if (unowned.length === 0) {
+            console.warn("All skills already unlocked!");
+            return;
+        }
+        
+        const skill = unowned[Math.floor(Math.random() * unowned.length)];
+        this.unlockedSkills.add(skill.id);
+        
+        // Re-apply skills to the player to reflect new bonuses
+        if (this.world.player) {
+            this.world.player.applySkills();
+        }
+        
+        // Save progress immediately
+        this.saveProgress();
+        
+        // Transition to feedback state
+        this.stateMachine.transition('SKILL_ACQUIRED', { skill: skill });
     }
 
     resize() {

@@ -23,18 +23,9 @@ export default class ReloadState extends State {
         this.frameCounter = 0;
         this.timer = 0;
 
-        // Capture a comprehensive snapshot of the Player's state
+        // Capture a comprehensive snapshot of the Player's state using the new serialization system
         if (game.world && game.world.player) {
-            const p = game.world.player;
-            this.savedPlayerData = {
-                hp: p.hp,
-                maxHp: p.maxHp,
-                money: p.money,
-                inventory: [...p.inventory],
-                equipment: [...p.equipment],
-                weapons: [...p.weapons],
-                currentWeaponIndex: p.currentWeaponIndex
-            };
+            this.savedPlayerData = game.serializeInventory();
             console.log("[ReloadState] Captured Player Data:", this.savedPlayerData);
         }
     }

@@ -55,37 +55,57 @@ export default class World {
             // Restore full player data across level transitions
             if (this.savedInventory) {
                 console.warn("Restoring Player Data:", this.savedInventory);
-                this.player.inventory = this.savedInventory.inventory || new Array(8).fill(null);
-                this.player.equipment = this.savedInventory.equipment || new Array(4).fill(null);
-
-                this.player.weapons = [null, null];
-                if (this.savedInventory.weapons) {
-                    for (let i = 0; i < 2; i++) {
-                        const w = this.savedInventory.weapons[i];
-                        if (w) {
-                            // Extract identifier string and rebuild fresh Entity Object for UI rendering
-                            const typeStr = typeof w === 'string' ? w : w.weaponType;
-                            this.player.weapons[i] = new WeaponItem(this.game, 0, 0, typeStr);
-                        }
+                
+                // Helper to reconstruct an item from a string identifier
+                const reconstructItem = (id) => {
+                    if (!id) return null;
+                    // If it's a known weapon type
+                    const weapons = ['Pistol', 'Shotgun', 'Heavy Shotgun'];
+                    if (weapons.includes(id)) {
+                        return new WeaponItem(this.game, 0, 0, id);
                     }
+                    // Handle other item types by constructor name
+                    if (id === 'HealthPack') return new HealthPack(this.game, 0, 0);
+                    if (id === 'Coin') return new Coin(this.game, 0, 0);
+                    
+                    return null;
+                };
+
+                // Restore core arrays
+                if (this.savedInventory.backpack) {
+                    this.player.inventory = this.savedInventory.backpack.map(reconstructItem);
+                }
+                if (this.savedInventory.equipment) {
+                    this.player.equipment = this.savedInventory.equipment.map(reconstructItem);
+                }
+                if (this.savedInventory.weapons) {
+                    this.player.weapons = this.savedInventory.weapons.map(reconstructItem);
                 }
 
                 this.player.currentWeaponIndex = this.savedInventory.currentWeaponIndex || 0;
 
+                // Sync stats if present
                 if (this.savedInventory.maxHp !== undefined) this.player.maxHp = this.savedInventory.maxHp;
-                if (this.savedInventory.hp !== undefined) this.player.hp = this.savedInventory.hp;
+                
+                // Only restore HP if it's valid/alive, otherwise reset to full
+                if (this.savedInventory.hp !== undefined && this.savedInventory.hp > 0) {
+                    this.player.hp = this.savedInventory.hp;
+                } else {
+                    this.player.hp = this.player.maxHp;
+                }
+                
                 if (this.savedInventory.money !== undefined) this.player.money = this.savedInventory.money;
 
-                // Force UI to redraw in case cache matched the old array references
+                // Force UI to redraw
                 if (this.game.ui) {
-                    this.game.ui.lastWeapon0 = undefined;
+                    this.game.ui.lastWeapon0 = undefined; // Force HUD refresh
                     this.game.ui.updateWeaponHUD();
                 }
             }
         } else {
             this.player.x = spawnX;
             this.player.y = spawnY;
-            // Health persists naturally if player object is kept (which we don't do anymore, but good to note)
+            // Health persists naturally if player object is kept
         }
 
         this.addEntity(this.player);

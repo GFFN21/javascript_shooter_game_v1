@@ -11,13 +11,14 @@ export default class GameStateMachine {
             'BOOT': ['SAVE_SELECT'],
             'SAVE_SELECT': ['LOADING'],
             'LOADING': ['PLAYING'],
-            'PLAYING': ['PAUSED_INVENTORY', 'PAUSED_SKILLS', 'PAUSED_ABILITIES', 'GAME_OVER', 'LEVEL_TRANSITION', 'SAVE_SELECT', 'LOADING', 'RELOAD'],
+            'PLAYING': ['PAUSED_INVENTORY', 'PAUSED_SKILLS', 'PAUSED_ABILITIES', 'GAME_OVER', 'LEVEL_TRANSITION', 'SAVE_SELECT', 'LOADING', 'RELOAD', 'SKILL_ACQUIRED'],
             'PAUSED_INVENTORY': ['PLAYING', 'SAVE_SELECT'],
             'PAUSED_SKILLS': ['PLAYING', 'SAVE_SELECT'],
             'PAUSED_ABILITIES': ['PLAYING', 'SAVE_SELECT'],
             'LEVEL_TRANSITION': ['PLAYING'],
             'GAME_OVER': ['LOADING', 'SAVE_SELECT'],
-            'RELOAD': ['PLAYING']
+            'RELOAD': ['PLAYING'],
+            'SKILL_ACQUIRED': ['PLAYING']
         };
     }
 

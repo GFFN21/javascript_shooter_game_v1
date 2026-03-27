@@ -265,6 +265,15 @@ export const CONFIG = {
             cost: 100,
             oneTime: true,
             effect: { type: 'flag', stat: 'canOrbit', value: true }
+        },
+        IMMORTAL_BACKPACK: {
+            id: 'immortal_backpack',
+            name: 'The Immortal Backpack',
+            description: 'Keep your items after death',
+            cost: 400,
+            category: 'utility',
+            oneTime: true,
+            effect: { type: 'flag', stat: 'keepInventoryOnDeath', value: true }
         }
     }
 };

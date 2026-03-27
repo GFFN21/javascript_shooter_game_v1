@@ -182,9 +182,6 @@ export default class UIManager {
         if (!this.skillsScreen.classList.contains('hidden')) {
             this.toggleStats(); // Close stats
         }
-        if (!this.abilitiesScreen.classList.contains('hidden')) {
-            this.toggleAbilities(); // Close abilities
-        }
 
         const isHidden = this.inventoryScreen.classList.contains('hidden');
         if (isHidden) {
@@ -201,9 +198,6 @@ export default class UIManager {
         if (!this.inventoryScreen.classList.contains('hidden')) {
             this.toggleInventory(); // Close inventory
         }
-        if (!this.abilitiesScreen.classList.contains('hidden')) {
-            this.toggleAbilities(); // Close abilities
-        }
 
         const isHidden = this.skillsScreen.classList.contains('hidden');
         if (isHidden) {
@@ -216,24 +210,6 @@ export default class UIManager {
         }
     }
 
-    toggleAbilities() {
-        if (!this.inventoryScreen.classList.contains('hidden')) {
-            this.toggleInventory(); // Close inventory
-        }
-        if (!this.skillsScreen.classList.contains('hidden')) {
-            this.toggleStats(); // Close stats
-        }
-
-        const isHidden = this.abilitiesScreen.classList.contains('hidden');
-        if (isHidden) {
-            this.abilitiesScreen.classList.remove('hidden');
-            this.renderAbilities(); // Render List
-            this.game.isPaused = true;
-        } else {
-            this.abilitiesScreen.classList.add('hidden');
-            this.game.isPaused = false;
-        }
-    }
 
     renderStats() {
         const list = document.getElementById('skills-list');
@@ -350,82 +326,6 @@ export default class UIManager {
 
             list.appendChild(column);
         });
-    }
-
-    renderAbilities() {
-        const list = document.getElementById('abilities-list');
-        if (!list) return;
-
-        list.innerHTML = '';
-
-        // Bank Display
-        const bankDisplay = document.createElement('div');
-        bankDisplay.style.color = '#FFD700';
-        bankDisplay.style.marginBottom = '10px';
-        bankDisplay.style.fontSize = '20px';
-        bankDisplay.style.textAlign = 'center';
-        bankDisplay.textContent = `Bank: ${this.game.bank} G`;
-        list.appendChild(bankDisplay);
-
-        Object.values(CONFIG.SKILLS).forEach(skill => {
-            const isUnlocked = this.game.unlockedSkills.has(skill.id);
-            const canAfford = this.game.bank >= skill.cost;
-
-            const item = document.createElement('div');
-            item.className = `skill-item ${isUnlocked ? 'unlocked' : ''}`;
-
-            // Info Section
-            const info = document.createElement('div');
-            info.className = 'skill-info';
-
-            const name = document.createElement('div');
-            name.className = 'skill-name';
-            name.textContent = skill.name;
-
-            const desc = document.createElement('div');
-            desc.className = 'skill-desc';
-            desc.textContent = skill.description;
-
-            info.appendChild(name);
-            info.appendChild(desc);
-
-            // Action Section
-            const action = document.createElement('div');
-            action.className = 'skill-action';
-
-            if (!isUnlocked) {
-                const cost = document.createElement('div');
-                cost.className = 'skill-cost';
-                cost.textContent = `${skill.cost} G`;
-                action.appendChild(cost);
-            }
-
-            const btn = document.createElement('button');
-            btn.className = 'buy-btn';
-
-            if (isUnlocked) {
-                btn.textContent = 'Owned';
-                btn.disabled = true;
-            } else {
-                btn.textContent = 'Buy';
-                btn.disabled = !canAfford;
-                if (canAfford) {
-                    this.bindButton(btn, () => this.handleSkillBuy(skill));
-                }
-            }
-
-            action.appendChild(btn);
-            item.appendChild(info);
-            item.appendChild(action);
-
-            list.appendChild(item);
-        });
-    }
-
-    handleSkillBuy(skill) {
-        if (this.game.purchaseUpgrade(skill.id, 'skill')) {
-            this.renderAbilities(); // Refresh UI
-        }
     }
 
     handleStatBuy(stat) {
