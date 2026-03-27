@@ -258,7 +258,11 @@ export default class Game {
         };
 
         styleCanvas(this.canvas);
-        if (uiViewport) styleCanvas(uiViewport);
+        if (uiViewport) {
+            styleCanvas(uiViewport);
+            const uiScale = displayWidth / 1280;
+            uiViewport.style.setProperty('--ui-scale', uiScale);
+        }
 
         // --- STEP 5: Camera Sync ---
         if (this.camera) {

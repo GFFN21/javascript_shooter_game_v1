@@ -29,7 +29,8 @@
     --c-success: #00ff00;
     --c-panel-bg: rgba(0, 0, 0, 0.95);
     --c-slot-bg: #222;
-    --c-slot-border: #444;
+    /* UI Scaling */
+    --ui-scale: 1;
 }
 
 body {
@@ -135,6 +136,8 @@ canvas {
     font-size: 24px;
     font-weight: bold;
     text-align: right;
+    transform: scale(var(--ui-scale));
+    transform-origin: top right;
 }
 
 .hidden {
@@ -160,6 +163,8 @@ canvas {
     display: flex;
     align-items: center;
     gap: 15px;
+    transform: scale(var(--ui-scale));
+    transform-origin: top left;
 }
 
 #exit-btn {
@@ -202,6 +207,8 @@ canvas {
     border-radius: 8px;
     text-align: center;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    transform: scale(var(--ui-scale));
+    transform-origin: center;
 }
 
 .modal-content h2 {
@@ -256,11 +263,27 @@ canvas {
 }
 
 /* Inventory Styles */
+#abilities-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(var(--ui-scale));
+    transform-origin: center;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #ff00ff;
+    padding: 20px;
+    text-align: center;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
 #inventory-screen {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(var(--ui-scale));
+    transform-origin: center;
     background: rgba(0, 0, 0, 0.95);
     border: 2px solid #fff;
     padding: 20px;
@@ -353,6 +376,8 @@ canvas {
     right: 20px;
     display: flex;
     gap: 10px;
+    transform: scale(var(--ui-scale));
+    transform-origin: bottom right;
 }
 
 #weapon-hud .slot {
@@ -387,7 +412,8 @@ canvas {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(var(--ui-scale));
+    transform-origin: center;
     background: rgba(0, 0, 0, 0.95);
     border: 2px solid #00ffff;
     /* Cyan border for distinction */
