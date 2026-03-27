@@ -205,37 +205,68 @@ export default class Game {
     }
 
     resize() {
-        const targetHeight = 720;
-        
-        // Mobile Portrait GB Mode Logic
-        const container = document.getElementById('game-container');
-        const contRect = container.getBoundingClientRect();
-        
-        const viewportWidth = contRect.width || window.innerWidth;
-        const viewportHeight = contRect.height || window.innerHeight;
-        
-        const aspect = viewportWidth / viewportHeight;
-
-        // Dynamic Width based on Aspect Ratio of the AVAILABLE space
-        this.width = Math.round(targetHeight * aspect);
-        this.height = targetHeight;
-
-        // Update Canvas Logical Size
+        // --- STEP 1: Strict Logical Resolution (16:9) ---
+        this.width = 1280;
+        this.height = 720;
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
-        // CSS: Maintain aspect ratio within container
-        this.canvas.style.width = 'auto';
-        this.canvas.style.height = 'auto';
-        this.canvas.style.maxWidth = '100%';
-        this.canvas.style.maxHeight = '100%';
+        // --- STEP 2: Window-Based Viewport Detection ---
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+        const portrait = winH > winW;
+        
+        let availableWidth = winW;
+        let availableHeight = winH;
 
+        // Handle the 55/45 Split on ALL Portrait viewports
+        // (Responsive to window, not device)
+        if (portrait) {
+            availableHeight = winH * 0.55; 
+        }
+
+        // --- STEP 3: Aspect Ratio Fitting (16:9) ---
+        const canvasAspect = 16 / 9;
+        const containerAspect = availableWidth / availableHeight;
+        
+        let displayWidth, displayHeight, displayTop, displayLeft;
+        
+        if (containerAspect > canvasAspect) {
+            // Screen is wider than 16:9 (Pillarbox on PC or Landscape)
+            displayHeight = availableHeight;
+            displayWidth = displayHeight * canvasAspect;
+            displayTop = 0;
+            displayLeft = (availableWidth - displayWidth) / 2;
+        } else {
+            // Screen is narrower than 16:9 (Letterbox - e.g. Phone Portrait)
+            // FORCE 100% WIDTH to avoid side gaps
+            displayWidth = availableWidth;
+            displayHeight = displayWidth / canvasAspect;
+            displayLeft = 0;
+            displayTop = (availableHeight - displayHeight) / 2;
+        }
+
+        // --- STEP 4: Apply Styles to Canvas & UI ---
+        const uiViewport = document.getElementById('ui-viewport');
+        
+        const styleCanvas = (el) => {
+            el.style.position = 'absolute';
+            el.style.width = `${Math.ceil(displayWidth)}px`;
+            el.style.height = `${Math.ceil(displayHeight)}px`;
+            el.style.top = `${Math.floor(displayTop)}px`;
+            el.style.left = `${Math.floor(displayLeft)}px`;
+        };
+
+        styleCanvas(this.canvas);
+        if (uiViewport) styleCanvas(uiViewport);
+
+        // --- STEP 5: Camera Sync ---
         if (this.camera) {
             this.camera.width = this.width;
             this.camera.height = this.height;
         }
 
-        console.log(`Resized Game: ${this.width}x${this.height} (Container: ${viewportWidth}x${viewportHeight})`);
+        console.log(`[Resize] Win: ${winW}x${winH} | Mode: ${portrait ? 'PORT' : 'LAND'} | Scale: ${displayWidth}x${displayHeight}`);
     }
 
     start() {
