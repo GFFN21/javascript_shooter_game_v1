@@ -64,7 +64,8 @@ export default class Altar extends Entity {
             ctx.textAlign = "center";
             ctx.shadowBlur = 10;
             ctx.shadowColor = "black";
-            ctx.fillText("PRESS [E] TO PRAY", this.x, this.y - this.height/2 - 20);
+            const prompt = this.game.isMobile ? "TAP [E] TO PRAY" : "PRESS [E] TO PRAY";
+            ctx.fillText(prompt, this.x, this.y - this.height/2 - 20);
             ctx.restore();
         }
     }

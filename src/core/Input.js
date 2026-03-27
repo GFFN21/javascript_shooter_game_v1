@@ -124,6 +124,13 @@ export default class Input {
         if (Platform.isMobile) {
             return this.touchControls && this.touchControls.buttons.interact;
         }
+        return this.isDown('KeyE');
+    }
+
+    isInteractionPressed() {
+        if (Platform.isMobile) {
+            return this.touchControls && this.touchControls._buttonsPressed.interact;
+        }
         return this.isPressed('KeyE');
     }
 

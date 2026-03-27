@@ -156,7 +156,7 @@ export default class Game {
         SaveManager.saveSlot(this.currentSlotId, data);
     }
 
-    serializeInventory() {
+    serializeInventory(persistentOnly = false) {
         if (!this.world || !this.world.player) return null;
         const p = this.world.player;
 
@@ -168,6 +168,12 @@ export default class Game {
             if (item.name) return item.name;
             return item.constructor.name;
         };
+
+        if (persistentOnly) {
+            return {
+                backpack: p.inventory.map(serialize)
+            };
+        }
 
         return {
             backpack: p.inventory.map(serialize),

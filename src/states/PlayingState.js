@@ -51,7 +51,7 @@ export default class PlayingState extends State {
             game.stateMachine.transition('PAUSED_INVENTORY');
         } else if (input.isPressed('KeyP')) {
             game.stateMachine.transition('PAUSED_SKILLS');
-        } else if (input.isPressed('KeyE')) {
+        } else if (input.isInteractionPressed()) {
             const nearestAltar = game.world.entities.find(e => 
                 e.constructor.name === 'Altar' && e.canInteract
             );

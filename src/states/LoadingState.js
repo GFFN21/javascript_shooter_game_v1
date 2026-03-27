@@ -35,7 +35,7 @@ export default class LoadingState extends State {
 
         if (this.mode === 'restart') {
             if (game.world && game.world.player && game.unlockedSkills.has('immortal_backpack')) {
-                this.savedInventory = game.serializeInventory();
+                this.savedInventory = game.serializeInventory(true);
             } else {
                 this.savedInventory = null;
             }

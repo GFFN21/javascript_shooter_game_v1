@@ -44,7 +44,7 @@ export default class TouchControls {
         // --- Action Buttons ---
         this.createButton('dash', 'DASH', 'dash');
         this.createButton('switchWeapon', '⟳', 'switch-weapon');
-        // 'interact' (Hand) button temporarily disabled by request
+        this.createButton('interact', 'E', 'interact');
 
         // --- Mobile HUD Menu Buttons ---
         this.createMenuButton('INV', () => {
