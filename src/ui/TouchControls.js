@@ -55,7 +55,13 @@ export default class TouchControls {
             if (this.game.ui) this.game.ui.toggleStats();
         }, 'stats');
 
-        document.body.appendChild(this.container);
+        const target = document.getElementById('mobile-controls-container') || document.body;
+        target.appendChild(this.container);
+        
+        // Show container if it was hidden (GB mode helper)
+        if (target.id === 'mobile-controls-container') {
+            target.classList.remove('hidden');
+        }
     }
 
     createJoystickZone(positionClass) {
@@ -153,7 +159,7 @@ export default class TouchControls {
     }
 
     updateStick(clientX, clientY, zone, data, puck) {
-        const maxDist = 25; // Halved from 50: Max speed reached with very little physical drag
+        const maxDist = 35; // Reduced from 50 for tighter feel
         const rect = zone.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;

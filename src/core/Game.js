@@ -205,10 +205,18 @@ export default class Game {
     }
 
     resize() {
-        const targetHeight = 720; // Fixed Vertical Resolution
-        const aspect = window.innerWidth / window.innerHeight;
+        const targetHeight = 720;
+        
+        // Mobile Portrait GB Mode Logic
+        const container = document.getElementById('game-container');
+        const contRect = container.getBoundingClientRect();
+        
+        const viewportWidth = contRect.width || window.innerWidth;
+        const viewportHeight = contRect.height || window.innerHeight;
+        
+        const aspect = viewportWidth / viewportHeight;
 
-        // Dynamic Width based on Aspect Ratio
+        // Dynamic Width based on Aspect Ratio of the AVAILABLE space
         this.width = Math.round(targetHeight * aspect);
         this.height = targetHeight;
 
@@ -216,19 +224,18 @@ export default class Game {
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
-        // CSS: Fill Window
-        this.canvas.style.width = '100%';
-        this.canvas.style.height = '100%';
-        this.canvas.style.marginTop = '0';
-        this.canvas.style.marginLeft = '0'; // Reset centering
+        // CSS: Maintain aspect ratio within container
+        this.canvas.style.width = 'auto';
+        this.canvas.style.height = 'auto';
+        this.canvas.style.maxWidth = '100%';
+        this.canvas.style.maxHeight = '100%';
 
-        // Update Camera dimensions if needed (Camera reads game.width/height usually)
         if (this.camera) {
             this.camera.width = this.width;
             this.camera.height = this.height;
         }
 
-        console.log(`Resized Game: ${this.width}x${this.height} (Aspect: ${aspect.toFixed(2)})`);
+        console.log(`Resized Game: ${this.width}x${this.height} (Container: ${viewportWidth}x${viewportHeight})`);
     }
 
     start() {
