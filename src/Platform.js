@@ -1,53 +1,46 @@
 // Platform detection — runs once at startup, never changes.
-// The result is persisted in localStorage so the input method
-// is locked to whatever device first launched the app.
+//
+// WHY NOT localStorage:
+//   On iOS, the standalone PWA context has a SEPARATE storage partition
+//   from the browser. A value saved in Safari is invisible to the installed
+//   home-screen app. We therefore rely on robust runtime detection instead.
+//
+// Detection priority (highest to lowest reliability):
+//   1. (pointer: coarse)  — hardware touch screen query, never spoofed
+//   2. navigator.standalone — iOS reports true when launched from home screen
+//   3. display-mode: standalone — Android Chrome PWA standalone check
+//   4. User Agent          — standard mobile browser string
+//   5. viewport width      — last-resort fallback
 export const Platform = {
     isMobile: false,
-    STORAGE_KEY: 'pwa_platform',
 
     detect() {
-        // --- Allow forced reset via URL param (e.g. ?reset_platform) ---
-        if (new URLSearchParams(window.location.search).has('reset_platform')) {
-            localStorage.removeItem(this.STORAGE_KEY);
-            console.log('[Platform] Preference cleared via URL param. Re-detecting...');
-        }
-
-        // --- Check for a saved preference from a previous launch ---
-        const saved = localStorage.getItem(this.STORAGE_KEY);
-        if (saved) {
-            this.isMobile = (saved === 'mobile');
-            if (this.isMobile) document.body.classList.add('mobile');
-            console.log(`[Platform] Loaded saved preference: ${saved}`);
-            return this.isMobile;
-        }
-
-        // --- First launch: run full detection and save the result ---
-        // 1. User Agent
-        const ua = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        // 2. Small viewport fallback
-        const small = window.innerWidth < 800;
-        // 3. iOS PWA standalone mode
-        const standalone = !!navigator.standalone;
-        // 4. Coarse pointer = touch device (most reliable across all contexts)
+        // 1. Coarse pointer = physical touch screen (most reliable in ALL contexts)
         const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
 
-        this.isMobile = ua || small || standalone || coarsePointer;
+        // 2. iOS home-screen standalone mode
+        const iosStandalone = !!navigator.standalone;
 
-        // Persist the result — this is the definitive "installation-time" lock
-        const platformString = this.isMobile ? 'mobile' : 'desktop';
-        localStorage.setItem(this.STORAGE_KEY, platformString);
+        // 3. Android/Chrome PWA display-mode: standalone
+        const androidStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+        // 4. User Agent string
+        const ua = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // 5. Small viewport last-resort fallback
+        const small = window.innerWidth < 800;
+
+        this.isMobile = coarsePointer || iosStandalone || androidStandalone || ua || small;
 
         if (this.isMobile) {
             document.body.classList.add('mobile');
         }
 
-        console.log(`[Platform] First launch detected: ${platformString.toUpperCase()} (ua=${ua}, small=${small}, standalone=${standalone}, coarsePointer=${coarsePointer}). Saved to localStorage.`);
+        console.log(
+            `[Platform] Detected: ${this.isMobile ? 'MOBILE ✓' : 'DESKTOP ✓'} ` +
+            `(coarse=${coarsePointer}, iosStandalone=${iosStandalone}, ` +
+            `androidStandalone=${androidStandalone}, ua=${ua}, small=${small})`
+        );
         return this.isMobile;
-    },
-
-    // Expose a helper to manually reset (can be called from the browser console)
-    reset() {
-        localStorage.removeItem(this.STORAGE_KEY);
-        console.log('[Platform] Preference reset. Reload the page to re-detect.');
     }
 };

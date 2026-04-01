@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roguelike-shooter-v1-cache';
+const CACHE_NAME = 'roguelike-shooter-v2-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
