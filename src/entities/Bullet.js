@@ -4,19 +4,49 @@ import { CONFIG } from '../Config.js';
 export default class Bullet extends Entity {
     constructor(game, x, y, dx, dy, speed, isEnemy = false) {
         super(game, x, y);
+        this.init(x, y, dx, dy, speed, isEnemy);
+    }
+
+    init(x, y, dx, dy, speed, isEnemy = false) {
+        this.x = x;
+        this.y = y;
         this.dx = dx;
         this.dy = dy;
         this.speed = speed;
-        this.radius = 4;
+        this.radius = 4;  // Legacy (used for rendering arc)
+        this.width = 8;    // AABB hitbox width
+        this.height = 8;   // AABB hitbox height
         this.type = CONFIG.COLLISION_TYPES.PROJECTILE;
         this.isEnemy = isEnemy;
         this.life = 2.0;
         this.markedForDeletion = false;
         this.bounces = 0; // Number of times it can bounce
         this.alwaysUpdate = true; // Bullets fly across rooms
+
+        // Reset dynamic states
+        this.behavior = undefined;
+        this.orbitAngle = undefined;
+        this.isMelee = undefined;
+        this.isExplosive = undefined;
+        this.damage = undefined;
+        this.knockback = undefined;
+        this.color = undefined;
     }
 
     update(dt) {
+        if (this.behavior === 'orbital') {
+            const player = this.game.world.player;
+            if (player) {
+                this.orbitAngle += dt * 5; // Rotation speed
+                const orbitRadius = 60 + Math.sin(this.orbitAngle * 0.5) * 10; // Pulsing radius
+                this.x = player.x + Math.cos(this.orbitAngle) * orbitRadius;
+                this.y = player.y + Math.sin(this.orbitAngle) * orbitRadius;
+            } else {
+                this.markedForDeletion = true;
+            }
+            return;
+        }
+
         this.x += this.dx * this.speed * dt;
         this.y += this.dy * this.speed * dt;
 
@@ -51,6 +81,9 @@ export default class Bullet extends Entity {
         // Player Bullet hitting Enemy
         if (!this.isEnemy) {
             if (other.type === CONFIG.COLLISION_TYPES.ENEMY) {
+                if (this.isExplosive) {
+                    this.game.world.explode(this.x, this.y, 80, this.damage || 2);
+                }
                 other.takeDamage(this.damage || 1);
                 if (other.applyKnockback) other.applyKnockback(this.dx, this.dy, this.knockback || 400);
                 this.game.world.spawnParticles(other.x, other.y, '#ff0000', 8);

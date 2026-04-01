@@ -46,8 +46,10 @@ export default class Door extends Entity {
             if (this.slideOffset > 0) {
                 const p = this.game.world.player;
                 // Simple AABB overlap check
-                if (p.x + p.radius > this.x && p.x - p.radius < this.x + this.width &&
-                    p.y + p.radius > this.y && p.y - p.radius < this.y + this.height) {
+                const hW = p.width / 2;
+                const hH = p.height / 2;
+                if (p.x + hW > this.x && p.x - hW < this.x + this.width &&
+                    p.y + hH > this.y && p.y - hH < this.y + this.height) {
 
                     // Calculate push direction (from center of door)
                     const cx = this.x + this.width / 2;

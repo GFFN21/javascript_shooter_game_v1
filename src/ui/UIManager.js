@@ -4,6 +4,18 @@ export default class UIManager {
     constructor(game) {
         this.game = game;
 
+        // Helper for consistent click/touch binding
+        this.bindButton = (btn, callback) => {
+            if (!btn) return;
+            const handler = (e) => {
+                if (e.cancelable) e.preventDefault();
+                e.stopPropagation();
+                callback(e);
+            };
+            btn.addEventListener('click', handler);
+            btn.addEventListener('touchstart', handler, { passive: false });
+        };
+
         this.heartsContainer = document.getElementById('hearts-container');
         this.levelDisplay = document.getElementById('level-display');
         this.scoreDisplay = document.getElementById('score-display');
@@ -21,37 +33,25 @@ export default class UIManager {
 
         // Inventory Click Handlers (Keep for click-to-equip/unequip if desired, or replace with DnD?)
         // Let's keep clicks as fallback or complementary.
-        this.inventoryGrid.addEventListener('click', (e) => this.handleInventoryClick(e, 'backpack'));
-        this.weaponsGrid.addEventListener('click', (e) => this.handleInventoryClick(e, 'weapon'));
+        this.bindButton(this.inventoryGrid, (e) => this.handleInventoryClick(e, 'backpack'));
+        this.bindButton(this.weaponsGrid, (e) => this.handleInventoryClick(e, 'weapon'));
 
         this.restartBtn = document.getElementById('restart-btn');
-        this.restartBtn.addEventListener('click', () => {
-            this.game.restart();
-            this.hideGameOver();
-        });
+        this.bindButton(this.restartBtn, () => this.game.restart());
 
-        // Exit Button
         // Exit Button & Confirmation
         this.exitBtn = document.getElementById('exit-btn');
         this.exitConfirmModal = document.getElementById('exit-confirm-modal');
         this.confirmExitBtn = document.getElementById('confirm-exit-btn');
         this.cancelExitBtn = document.getElementById('cancel-exit-btn');
 
-        this.exitBtn.addEventListener('click', () => {
-            this.exitConfirmModal.classList.remove('hidden');
-            this.game.isPaused = true;
-        });
-
-        this.confirmExitBtn.addEventListener('click', () => {
+        this.bindButton(this.exitBtn, () => this.exitConfirmModal.classList.remove('hidden'));
+        this.bindButton(this.confirmExitBtn, () => {
             this.exitConfirmModal.classList.add('hidden');
             this.game.saveProgress();
-            this.showSaveSelection();
+            this.game.stateMachine.transition('SAVE_SELECT');
         });
-
-        this.cancelExitBtn.addEventListener('click', () => {
-            this.exitConfirmModal.classList.add('hidden');
-            this.game.isPaused = false;
-        });
+        this.bindButton(this.cancelExitBtn, () => this.exitConfirmModal.classList.add('hidden'));
 
         this.lastHp = -1;
 
@@ -59,6 +59,16 @@ export default class UIManager {
         this.draggedSource = null; // 'backpack' or 'weapon'
         this.draggedIndex = -1;
         this.hoveredSlot = null; // { source: '...', index: ... }
+
+        // UI State Cache (Prevents 60Hz DOM Thrashing)
+        this.lastLevel = -1;
+        this.lastScore = -1;
+        this.lastBank = -1;
+
+        // HUD State Cache
+        this.lastWeaponIndex = -1;
+        this.lastWeapon0 = undefined; // Use undefined so null matches empty slots
+        this.lastWeapon1 = undefined;
     }
 
     showSaveSelection() {
@@ -101,22 +111,31 @@ export default class UIManager {
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-slot-btn';
                 deleteBtn.textContent = 'DELETE';
-                deleteBtn.onclick = (e) => {
+                this.bindButton(deleteBtn, (e) => {
                     e.stopPropagation();
-                    if (confirm(`Delete ${slotData.name}?`)) {
+                    if (confirm(`Delete Run #${id}?`)) {
                         SaveManager.deleteSlot(id);
                         this.renderSaveSlots();
                     }
-                };
+                });
                 slotEl.appendChild(deleteBtn);
             } else {
                 slotEl.innerHTML = `<h3>EMPTY SLOT</h3><p>Click to start new run</p>`;
             }
 
-            slotEl.onclick = () => {
-                this.hideSaveSelection();
+            this.bindButton(slotEl, () => {
                 this.game.loadGame(id);
-            };
+                
+                // Attempt to force immersive fullscreen on Mobile devices to hide the URL searchbar
+                if (document.body.classList.contains('mobile')) {
+                    const docEl = document.documentElement;
+                    if (docEl.requestFullscreen) {
+                        docEl.requestFullscreen().catch(() => {}); // Catch prevents console spam if denied
+                    } else if (docEl.webkitRequestFullscreen) { // iOS Safari fallback
+                        docEl.webkitRequestFullscreen().catch(() => {});
+                    }
+                }
+            });
 
             this.saveSlotsContainer.appendChild(slotEl);
         });
@@ -163,9 +182,6 @@ export default class UIManager {
         if (!this.skillsScreen.classList.contains('hidden')) {
             this.toggleStats(); // Close stats
         }
-        if (!this.abilitiesScreen.classList.contains('hidden')) {
-            this.toggleAbilities(); // Close abilities
-        }
 
         const isHidden = this.inventoryScreen.classList.contains('hidden');
         if (isHidden) {
@@ -182,9 +198,6 @@ export default class UIManager {
         if (!this.inventoryScreen.classList.contains('hidden')) {
             this.toggleInventory(); // Close inventory
         }
-        if (!this.abilitiesScreen.classList.contains('hidden')) {
-            this.toggleAbilities(); // Close abilities
-        }
 
         const isHidden = this.skillsScreen.classList.contains('hidden');
         if (isHidden) {
@@ -197,24 +210,6 @@ export default class UIManager {
         }
     }
 
-    toggleAbilities() {
-        if (!this.inventoryScreen.classList.contains('hidden')) {
-            this.toggleInventory(); // Close inventory
-        }
-        if (!this.skillsScreen.classList.contains('hidden')) {
-            this.toggleStats(); // Close stats
-        }
-
-        const isHidden = this.abilitiesScreen.classList.contains('hidden');
-        if (isHidden) {
-            this.abilitiesScreen.classList.remove('hidden');
-            this.renderAbilities(); // Render List
-            this.game.isPaused = true;
-        } else {
-            this.abilitiesScreen.classList.add('hidden');
-            this.game.isPaused = false;
-        }
-    }
 
     renderStats() {
         const list = document.getElementById('skills-list');
@@ -222,21 +217,26 @@ export default class UIManager {
 
         list.innerHTML = '';
 
-        // Bank Display (spans all columns)
-        const bankDisplay = document.createElement('div');
-        bankDisplay.style.gridColumn = '1 / -1';
-        bankDisplay.style.color = '#FFD700';
-        bankDisplay.style.marginBottom = '10px';
-        bankDisplay.style.fontSize = '20px';
-        bankDisplay.style.textAlign = 'center';
+        // Bank Display (ensure it's clean and standalone)
+        const skillsScreen = document.getElementById('skills-screen');
+        let bankDisplay = document.getElementById('bank-display-stats');
+        if (!bankDisplay) {
+            bankDisplay = document.createElement('div');
+            bankDisplay.id = 'bank-display-stats';
+            bankDisplay.style.color = '#FFD700';
+            bankDisplay.style.marginBottom = '15px';
+            bankDisplay.style.fontSize = '22px';
+            bankDisplay.style.fontWeight = 'bold';
+            skillsScreen.insertBefore(bankDisplay, document.getElementById('skills-container'));
+        }
         bankDisplay.textContent = `Bank: ${this.game.bank} G`;
-        list.appendChild(bankDisplay);
 
         // Group stats by category
         const categories = {
             attack: [],
             health: [],
-            mobility: []
+            mobility: [],
+            dash: []
         };
 
         Object.values(CONFIG.STAT_UPGRADES).forEach(stat => {
@@ -245,20 +245,28 @@ export default class UIManager {
             }
         });
 
-        // Create columns for each category
         const categoryNames = {
             attack: 'Attack',
             health: 'Health',
-            mobility: 'Mobility'
+            mobility: 'Movement',
+            dash: 'Dash Skills'
         };
 
-        ['attack', 'health', 'mobility'].forEach(categoryKey => {
+        Object.keys(categories).forEach(categoryKey => {
+            if (categories[categoryKey].length === 0) return;
+
             const column = document.createElement('div');
             column.className = 'stat-category';
+            // Default expansion state or use a persistent one? Let's default all expanded.
 
             // Category header
             const header = document.createElement('h3');
-            header.textContent = categoryNames[categoryKey];
+            header.innerHTML = `<span>${categoryNames[categoryKey]}</span>`;
+
+            this.bindButton(header, () => {
+                column.classList.toggle('collapsed');
+            });
+
             column.appendChild(header);
 
             // Stats in this category
@@ -305,7 +313,7 @@ export default class UIManager {
                     btn.textContent = 'Buy';
                     btn.disabled = !canAfford;
                     if (canAfford) {
-                        btn.onclick = () => this.handleStatBuy(stat);
+                        this.bindButton(btn, () => this.handleStatBuy(stat));
                     }
                 }
 
@@ -320,100 +328,9 @@ export default class UIManager {
         });
     }
 
-    renderAbilities() {
-        const list = document.getElementById('abilities-list');
-        if (!list) return;
-
-        list.innerHTML = '';
-
-        // Bank Display
-        const bankDisplay = document.createElement('div');
-        bankDisplay.style.color = '#FFD700';
-        bankDisplay.style.marginBottom = '10px';
-        bankDisplay.style.fontSize = '20px';
-        bankDisplay.style.textAlign = 'center';
-        bankDisplay.textContent = `Bank: ${this.game.bank} G`;
-        list.appendChild(bankDisplay);
-
-        Object.values(CONFIG.SKILLS).forEach(skill => {
-            const isUnlocked = this.game.unlockedSkills.has(skill.id);
-            const canAfford = this.game.bank >= skill.cost;
-
-            const item = document.createElement('div');
-            item.className = `skill-item ${isUnlocked ? 'unlocked' : ''}`;
-
-            // Info Section
-            const info = document.createElement('div');
-            info.className = 'skill-info';
-
-            const name = document.createElement('div');
-            name.className = 'skill-name';
-            name.textContent = skill.name;
-
-            const desc = document.createElement('div');
-            desc.className = 'skill-desc';
-            desc.textContent = skill.description;
-
-            info.appendChild(name);
-            info.appendChild(desc);
-
-            // Action Section
-            const action = document.createElement('div');
-            action.className = 'skill-action';
-
-            if (!isUnlocked) {
-                const cost = document.createElement('div');
-                cost.className = 'skill-cost';
-                cost.textContent = `${skill.cost} G`;
-                action.appendChild(cost);
-            }
-
-            const btn = document.createElement('button');
-            btn.className = 'buy-btn';
-
-            if (isUnlocked) {
-                btn.textContent = 'Owned';
-                btn.disabled = true;
-            } else {
-                btn.textContent = 'Buy';
-                btn.disabled = !canAfford;
-                if (canAfford) {
-                    btn.onclick = () => this.handleSkillBuy(skill);
-                }
-            }
-
-            action.appendChild(btn);
-            item.appendChild(info);
-            item.appendChild(action);
-
-            list.appendChild(item);
-        });
-    }
-
-    handleSkillBuy(skill) {
-        if (this.game.bank >= skill.cost) {
-            this.game.bank -= skill.cost;
-            this.game.unlockedSkills.add(skill.id);
-            this.game.saveProgress();
-
-            this.renderAbilities(); // Refresh UI
-        }
-    }
-
     handleStatBuy(stat) {
-        if (this.game.bank >= stat.cost) {
-            this.game.bank -= stat.cost;
-            this.game.unlockedStats.add(stat.id);
-            this.game.saveProgress();
-
-            // Apply immediately to Player
-            if (this.game.world.player) {
-                this.game.world.player.applySkills();
-            }
-
+        if (this.game.purchaseUpgrade(stat.id, 'stat')) {
             this.renderStats(); // Refresh UI
-
-            // Optional: Play unlock sound?
         }
     }
 
@@ -544,10 +461,21 @@ export default class UIManager {
             }
         }
 
-        this.levelDisplay.textContent = this.game.level;
-        this.scoreDisplay.textContent = this.game.score;
-        // Show Bank Gold as it's the spending currency
-        this.moneyDisplay.textContent = 'Gold: ' + this.game.bank;
+        // Update Level, Score, Bank ONLY if changed
+        if (this.game.level !== this.lastLevel) {
+            this.levelDisplay.textContent = this.game.level;
+            this.lastLevel = this.game.level;
+        }
+
+        if (this.game.score !== this.lastScore) {
+            this.scoreDisplay.textContent = this.game.score;
+            this.lastScore = this.game.score;
+        }
+
+        if (this.game.bank !== this.lastBank) {
+            this.moneyDisplay.textContent = 'Gold: ' + this.game.bank;
+            this.lastBank = this.game.bank;
+        }
 
         this.updateWeaponHUD();
     }
@@ -558,11 +486,26 @@ export default class UIManager {
         }
         if (!this.weaponHudContainer) return; // Safety
 
-        this.weaponHudContainer.innerHTML = '';
         const player = this.game.world.player;
         if (!player) return;
 
-        for (let i = 0; i < 3; i++) {
+        // CHECK CACHE: Only rebuild if weapons or selected index changed
+        if (this.lastWeaponIndex === player.currentWeaponIndex &&
+            this.lastWeapon0 === player.weapons[0] &&
+            this.lastWeapon1 === player.weapons[1]) {
+            return; // No layout changes needed!
+        }
+
+        // Update Cache
+        this.lastWeaponIndex = player.currentWeaponIndex;
+        this.lastWeapon0 = player.weapons[0];
+        this.lastWeapon1 = player.weapons[1];
+
+        // Rebuild DOM
+        this.weaponHudContainer.innerHTML = '';
+
+        const maxSlots = player.weapons.length; // Should be 2 now
+        for (let i = 0; i < maxSlots; i++) {
             const slot = document.createElement('div');
             slot.classList.add('slot');
             if (i === player.currentWeaponIndex) {
@@ -595,5 +538,12 @@ export default class UIManager {
 
     hideGameOver() {
         this.gameOverScreen.classList.add('hidden');
+    }
+
+    hideAllMenus() {
+        this.inventoryScreen.classList.add('hidden');
+        this.skillsScreen.classList.add('hidden');
+        this.abilitiesScreen.classList.add('hidden');
+        this.exitConfirmModal.classList.add('hidden');
     }
 }

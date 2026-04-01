@@ -20,24 +20,28 @@ export default class Player extends Entity {
         this.isDashing = false;
         this.dashDir = { x: 0, y: 0 };
 
-        // Inventory (8 slots)
-        this.inventory = new Array(8).fill(null);
+        // Inventory (4 slots)
+        this.inventory = new Array(4).fill(null);
 
         // Equipment (4 slots: Weapon, Armor, Accessory, etc.)
         this.equipment = new Array(4).fill(null);
 
-        // Weapons (3 slots: Primary, Secondary, Sidearm)
-        this.weapons = [null, null, null]; // 3 Slots
+        // Weapons (2 slots: Primary, Secondary)
+        this.weapons = [null, null]; // 2 Slots
         this.currentWeaponIndex = 0;
-        this.weapons[0] = { name: 'Pistol', ...CONFIG.WEAPONS.PISTOL }; // Starter
+        this.weapons[0] = null; // Removed Starter Pistol
 
         this.switchWeaponTimer = 0;
 
         this.money = 0;
 
+        // Hitbox (AABB)
+        this.width = 12;
+        this.height = 24;
+
         // Sprite
         this.sprite = new Image();
-        this.sprite.src = 'src/player_spritesheet_v2.png';
+        this.sprite.src = 'assets/sprites/player_spritesheet_v2.png';
 
         // Animation State
         this.frameWidth = 64;
@@ -51,6 +55,8 @@ export default class Player extends Entity {
         this.frameTimer = 0;
         this.facing = 0; // 0:S, 1:SE, 2:E, 3:NE, 4:N, 5:NW, 6:W, 7:SW
         this.state = 'idle'; // idle, run
+
+        this.shotsFired = 0;
     }
 
     takeDamage(amount) {
@@ -62,37 +68,64 @@ export default class Player extends Entity {
     }
 
     applySkills() {
-        const stats = CONFIG.PLAYER;
-        let maxHp = stats.HP;
-        let speed = stats.SPEED;
+        const base = CONFIG.PLAYER;
 
+        // 1. Reset to base stats
+        this.speed = base.SPEED;
+        this.maxHp = base.HP;
+        this.dashSpeed = base.DASH_SPEED;
+        this.dashDuration = base.DASH_DURATION;
+        this.dashCooldown = base.DASH_COOLDOWN;
+        this.canRicochet = false;
+        this.bulletBounces = 0;
+        this.dashShockwave = false;
+        this.canCarryHealth = false;
+        this.isExplosive = false;
+        this.canOrbit = false;
+
+        // 2. Gather all active effects
+        const activeEffects = [];
+
+        // Permanent Upgrades
         if (this.game.unlockedStats) {
-            if (this.game.unlockedStats.has('health_boost_1')) maxHp += 1;
-            if (this.game.unlockedStats.has('health_boost_2')) maxHp += 2;
-            if (this.game.unlockedStats.has('speed_boost_1')) speed *= 1.10;
-            if (this.game.unlockedStats.has('speed_boost_2')) speed *= 1.15;
+            this.game.unlockedStats.forEach(id => {
+                const upgrade = Object.values(CONFIG.STAT_UPGRADES).find(u => u.id === id);
+                if (upgrade && upgrade.effect) activeEffects.push(upgrade.effect);
+            });
         }
 
-        // Apply
-        this.speed = speed;
+        // Skills (Abilities)
+        if (this.game.unlockedSkills) {
+            this.game.unlockedSkills.forEach(id => {
+                const skill = Object.values(CONFIG.SKILLS).find(s => s.id === id);
+                if (skill && skill.effect) activeEffects.push(skill.effect);
+            });
+        }
 
-        // Handle HP
-        const oldMax = this.maxHp || maxHp;
-        this.maxHp = maxHp;
+        // 3. Apply effects
+        // We apply 'add' and 'flag' first, then 'multiplier' to avoid order issues
+        const multipliers = [];
 
-        // If first time initialization (undefined hp), set full hp
+        activeEffects.forEach(eff => {
+            if (eff.type === 'add') {
+                this[eff.stat] += eff.value;
+            } else if (eff.type === 'flag') {
+                this[eff.stat] = eff.value;
+            } else if (eff.type === 'multiplier') {
+                multipliers.push(eff);
+            }
+        });
+
+        multipliers.forEach(eff => {
+            this[eff.stat] *= eff.value;
+        });
+
+        // 4. Handle HP logic (ensure current hp doesn't exceed new max)
         if (this.hp === undefined) {
             this.hp = this.maxHp;
-        } else if (this.maxHp > oldMax) {
-            // Optional: If mid-game upgrade, maybe heal the difference?
-            // For now, keep current HP, user just gains POTENTIAL.
-            // Actually, if I buy +1 HP, I expect to gain a health slot.
+        } else {
+            this.hp = Math.min(this.hp, this.maxHp);
         }
-
-        // Dash defaults
-        this.dashSpeed = stats.DASH_SPEED;
-        this.dashDuration = stats.DASH_DURATION;
-        this.dashCooldown = stats.DASH_COOLDOWN;
     }
 
     addToInventory(item) {
@@ -179,7 +212,8 @@ export default class Player extends Entity {
         }
 
         this.dashDir = { x: dx, y: dy };
-        this.game.world.spawnParticles(this.x, this.y, '#0ff', 10);
+        // Initial dash burst (reduced from 10)
+        this.game.world.spawnParticles(this.x, this.y, '#0ff', 5);
     }
 
     updateMovement(dt) {
@@ -208,10 +242,7 @@ export default class Player extends Entity {
             moveY = this.dashDir.y * this.dashSpeed * dt;
             this.dashTimer -= dt;
 
-            // Trail
-            if (Math.random() < 0.5) {
-                this.game.world.spawnParticles(this.x, this.y, 'rgba(0, 255, 255, 0.5)', 1);
-            }
+            // Dash Trail logic removed to save CPU overhead
 
             if (this.dashTimer <= 0) {
                 this.isDashing = false;
@@ -249,12 +280,13 @@ export default class Player extends Entity {
     }
 
     checkWallCollision() {
-        const r = this.radius * 0.8; // bounding box half-width
+        const hW = this.width / 2;
+        const hH = this.height / 2;
         return this.game.world.checkWallCollision(
-            this.x - r,
-            this.y - r,
-            r * 2,
-            r * 2
+            this.x - hW,
+            this.y - hH,
+            this.width,
+            this.height
         );
     }
 
@@ -302,8 +334,8 @@ export default class Player extends Entity {
         for (let i = 0; i < stats.count; i++) {
             const angle = startAngle + (step * i);
 
-            const bullet = new Bullet(
-                this.game,
+            const bullet = this.game.world.bulletPool.get();
+            bullet.init(
                 this.x,
                 this.y,
                 Math.cos(angle),
@@ -321,8 +353,21 @@ export default class Player extends Entity {
             if (stats.isMelee) {
                 bullet.radius = 20; // Big hitbox for punch
             } else {
-                // Apply Ricochet Skill
-                bullet.bounces = this.game.unlockedStats.has('ricochet') ? 1 : 0;
+                // Apply Skills to Projectile
+                bullet.bounces = this.bulletBounces;
+                bullet.isExplosive = this.isExplosive;
+
+                // Handle Orbital Every 10 shots
+                if (this.canOrbit) {
+                    this.shotsFired++;
+                    if (this.shotsFired >= 10) {
+                        this.shotsFired = 0;
+                        bullet.behavior = 'orbital';
+                        bullet.orbitAngle = Math.random() * Math.PI * 2;
+                        bullet.alwaysUpdate = true; // Stay active around player
+                        bullet.life = 10.0; // Orbit for a while
+                    }
+                }
             }
 
             this.game.world.addEntity(bullet);
@@ -336,8 +381,8 @@ export default class Player extends Entity {
         const range = 150;
         const force = 800; // Strong push
 
-        // Visual
-        this.game.world.spawnParticles(this.x, this.y, '#00ffff', 20);
+        // Visual nova (reduced from 20)
+        this.game.world.spawnParticles(this.x, this.y, '#00ffff', 8);
 
         this.game.world.entities.forEach(e => {
             if (e === this) return;
@@ -364,19 +409,19 @@ export default class Player extends Entity {
     render(ctx) {
         if (this.flashTimer > 0) ctx.globalAlpha = 0.5;
 
-        // Shadow
+        // Shadow - tighter to the character's feet base
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.beginPath();
-        ctx.ellipse(this.x, this.y + 25, 18, 9, 0, 0, Math.PI * 2);
+        ctx.ellipse(this.x, this.y + 19, 14, 7, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.save();
+        // Render Size (Scaled to 80x80)
+        const drawW = 80;
+        const drawH = 80;
 
-        // Render Size (~1.5x of 64)
-        const drawW = 96;
-        const drawH = 96;
         let drawX = this.x - drawW / 2;
-        let drawY = this.y - drawH / 2 - 25;
+        // Fine-tuning: Narrowing the box and nudging the sprite up a few more pixels (-8)
+        let drawY = this.y - drawH / 2;
 
         // Calculate Row
         const rowOffset = this.state === 'run' ? 8 : 0;
@@ -390,20 +435,11 @@ export default class Player extends Entity {
                 drawW, drawH
             );
         } else {
-            // Fallback: simple filled circle using default color
+            // Fallback: simple filled rect using default color
             ctx.fillStyle = this.color || 'rgba(200,200,200,0.8)';
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
         }
 
-        ctx.restore();
         ctx.globalAlpha = 1.0;
-
-        // Debug Hitbox
-        ctx.strokeStyle = 'green';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.stroke();
     }
 }

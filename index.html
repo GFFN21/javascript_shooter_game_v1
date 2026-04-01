@@ -3,101 +3,122 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Roguelike Shooter</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="assets/pwa/icon-192.png">
 </head>
 
 <body>
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
-        <div id="ui-layer">
-            <div id="hud">
-                <div id="hud-left">
-                    <button id="exit-btn">MENU</button>
-                    <div id="hearts-container">
-                        <!-- Hearts will be injected here -->
-                    </div>
-                </div>
-
-                <div id="stats">
-
-                    <div id="money-display">Gold: 0</div>
-                    <div id="level-info">Level: <span id="level-display">1</span></div>
-                    <div id="score-info">Score: <span id="score-display">0</span></div>
-                </div>
-
-                <div id="weapon-hud">
-                    <!-- Injected via JS: 3 Slots -->
-                </div>
-
-                <div id="save-screen" class="hidden">
-                    <h1>SELECT RUN</h1>
-                    <div id="save-slots-container">
-                        <!-- Slots injected via JS -->
-                    </div>
-                </div>
-
-                <div id="exit-confirm-modal" class="hidden">
-                    <div class="modal-content">
-                        <h2>Are you sure you want to quit this run?</h2>
-                        <div class="modal-buttons">
-                            <button id="confirm-exit-btn">Yes</button>
-                            <button id="cancel-exit-btn">No</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="game-over-screen" class="hidden">
-                    <h1>GAME OVER</h1>
-                    <p>Score: <span id="final-score">0</span></p>
-                    <button id="restart-btn">Restart</button>
-                </div>
-                <div id="inventory-screen" class="hidden">
-                    <h2>DASHBOARD</h2>
-                    <div id="inventory-container">
-                        <div id="equipment-col" class="inv-col">
-                            <h3>EQUIPMENT</h3>
-                            <div id="equipment-grid" class="grid-2x2"></div>
-                        </div>
-
-                        <div id="inventory-col" class="inv-col">
-                            <h3>BACKPACK</h3>
-                            <div id="inventory-grid" class="grid-4x2">
-                                <!-- Slots injected by JS -->
+    <div id="main-wrapper">
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+            <div id="ui-layer">
+                <div id="ui-viewport">
+                    <div id="hud">
+                        <div id="hud-left">
+                            <button id="exit-btn">MENU</button>
+                            <div id="hearts-container">
+                                <!-- Hearts will be injected here -->
                             </div>
                         </div>
 
-                        <div id="weapons-col" class="inv-col">
-                            <h3>WEAPONS</h3>
-                            <div id="weapons-grid" class="grid-3x1"></div>
-                        </div>
-                    </div>
-                    <p class="hint">Press 'I' to Close</p>
-                </div>
+                        <div id="stats">
 
-                <div id="skills-screen" class="hidden">
-                    <h2>STATS</h2>
-                    <div id="skills-container">
-                        <div id="skills-list">
-                            <!-- Injected via JS -->
+                            <div id="money-display">Gold: 0</div>
+                            <div id="level-info">Level: <span id="level-display">1</span></div>
+                            <div id="score-info">Score: <span id="score-display">0</span></div>
                         </div>
-                    </div>
-                    <p class="hint">Press 'P' to Close</p>
-                </div>
 
-                <div id="abilities-screen" class="hidden">
-                    <h2>SKILLS</h2>
-                    <div id="abilities-container">
-                        <div id="abilities-list">
-                            <!-- Injected via JS -->
+                        <div id="weapon-hud">
+                            <!-- Injected via JS: 3 Slots -->
+                        </div>
+
+                        <div id="save-screen" class="hidden">
+                            <h1>SELECT RUN</h1>
+                            <div id="save-slots-container">
+                                <!-- Slots injected via JS -->
+                            </div>
+                        </div>
+
+                        <div id="exit-confirm-modal" class="hidden">
+                            <div class="modal-content">
+                                <h2>Are you sure you want to quit this run?</h2>
+                                <div class="modal-buttons">
+                                    <button id="confirm-exit-btn">Yes</button>
+                                    <button id="cancel-exit-btn">No</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="game-over-screen" class="hidden">
+                            <h1>GAME OVER</h1>
+                            <p>Score: <span id="final-score">0</span></p>
+                            <button id="restart-btn">Restart</button>
+                        </div>
+                        <div id="inventory-screen" class="hidden">
+                            <h2>DASHBOARD</h2>
+                            <div id="inventory-container">
+                                <div id="equipment-col" class="inv-col">
+                                    <h3>EQUIPMENT</h3>
+                                    <div id="equipment-grid" class="grid-2x2"></div>
+                                </div>
+
+                                <div id="inventory-col" class="inv-col">
+                                    <h3>BACKPACK</h3>
+                                    <div id="inventory-grid" class="grid-2x2">
+                                        <!-- Slots injected by JS -->
+                                    </div>
+                                </div>
+
+                                <div id="weapons-col" class="inv-col">
+                                    <h3>WEAPONS</h3>
+                                    <div id="weapons-grid" class="grid-2x1"></div>
+                                </div>
+                            </div>
+                            <p class="hint">Press 'I' to Close</p>
+                        </div>
+
+                        <div id="skills-screen" class="hidden">
+                            <h2>STATS</h2>
+                            <div id="skills-container">
+                                <div id="skills-list">
+                                    <!-- Injected via JS -->
+                                </div>
+                            </div>
+                            <p class="hint">Press 'P' to Close</p>
+                        </div>
+
+                        <div id="abilities-screen" class="hidden">
+                            <h2>SKILLS</h2>
+                            <div id="abilities-container">
+                                <div id="abilities-list">
+                                    <!-- Injected via JS -->
+                                </div>
+                            </div>
+                            <p class="hint">Press 'O' to Close</p>
                         </div>
                     </div>
-                    <p class="hint">Press 'O' to Close</p>
                 </div>
             </div>
         </div>
-        <script type="module" src="src/main.js?v=12345"></script>
+        <div id="mobile-controls-container"></div>
+    </div>
+    <script type="module" src="src/main.js?v=12404"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('[PWA] Service Worker registered!', reg))
+                    .catch(err => console.log('[PWA] Service Worker registration failed:', err));
+            });
+        }
+    </script>
 </body>
 
 </html>

@@ -1,4 +1,4 @@
-import Game from './Game.js';
+import Game from './core/Game.js';
 import { Platform } from './Platform.js';
 
 window.addEventListener('DOMContentLoaded', () => {

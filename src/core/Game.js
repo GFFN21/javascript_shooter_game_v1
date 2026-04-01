@@ -1,0 +1,355 @@
+import Input from './Input.js';
+import Camera from './Camera.js';
+import World from './World.js';
+import { CONFIG } from '../Config.js';
+import UIManager from '../ui/UIManager.js';
+import SaveManager from '../utils/SaveManager.js';
+
+import GameStateMachine from './GameStateMachine.js';
+import BootState from '../states/BootState.js';
+import SaveSelectState from '../states/SaveSelectState.js';
+import LoadingState from '../states/LoadingState.js';
+import PlayingState from '../states/PlayingState.js';
+import PausedState from '../states/PausedState.js';
+import GameOverState from '../states/GameOverState.js';
+import ReloadState from '../states/ReloadState.js';
+import SkillAcquiredState from '../states/SkillAcquiredState.js';
+
+export default class Game {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.width = canvas.width;
+        this.height = canvas.height;
+
+        this.lastTime = 0;
+        this.accumulatedTime = 0;
+        this.step = 1 / 60;
+
+        // Save State
+        this.currentSlotId = null;
+        SaveManager.checkLegacyMigration();
+
+        this.level = 1;
+        this.score = 0;
+        this.highScore = 0;
+        this.bank = 0;
+        this.unlockedStats = new Set();
+        this.unlockedSkills = new Set();
+
+        this.isGameOver = false;
+        this.isPaused = false; // Inventory Pause
+
+        this.input = new Input(this);
+        this.camera = new Camera(this, 0, 0);
+        this.world = new World(this);
+        this.ui = new UIManager(this);
+
+
+        // Bind loop
+        this.loop = this.loop.bind(this);
+        this.animationFrameId = null;
+
+        // Initialize State Machine
+        this.stateMachine = new GameStateMachine(this);
+        this.stateMachine.register(new BootState());
+        this.stateMachine.register(new SaveSelectState());
+        this.stateMachine.register(new LoadingState());
+        this.stateMachine.register(new PlayingState());
+        this.stateMachine.register(new PausedState('inventory'));
+        this.stateMachine.register(new PausedState('skills'));
+        this.stateMachine.register(new PausedState('abilities'));
+        this.stateMachine.register(new GameOverState());
+        this.stateMachine.register(new ReloadState());
+        this.stateMachine.register(new SkillAcquiredState());
+
+        // Start in BOOT state (will auto-transition to SAVE_SELECT)
+        this.stateMachine.transition('BOOT');
+    }
+
+    loadGame(slotId) {
+        this.currentSlotId = slotId;
+        const data = SaveManager.loadSlot(slotId);
+
+        // Reset to default session state before loading
+        this.bank = 0;
+        this.unlockedStats = new Set();
+        this.unlockedSkills = new Set();
+        this.highScore = 0;
+        this.level = 1;
+        this.score = 0;
+
+        if (data && data.gameplay) {
+            this.bank = data.gameplay.bank || 0;
+            this.unlockedStats = new Set(data.gameplay.unlockedStats || []);
+            this.unlockedSkills = new Set(data.gameplay.unlockedSkills || []);
+            this.highScore = data.gameplay.highScore || 0;
+
+            // Restore Level and Score for continuity
+            this.level = data.gameplay.level || 1;
+            this.score = data.gameplay.score || 0;
+
+            // Restore Inventory if present
+            if (data.inventory) {
+                this.savedInventory = data.inventory;
+            }
+        }
+
+        // Transition to LOADING with load payload
+        // LoadingState will create the World and start playing
+        this.stateMachine.transition('LOADING', { mode: 'load' });
+    }
+
+    purchaseUpgrade(upgradeId, type = 'stat') {
+        const configSource = type === 'stat' ? CONFIG.STAT_UPGRADES : CONFIG.SKILLS;
+        const upgrade = Object.values(configSource).find(u => u.id === upgradeId);
+
+        if (!upgrade) {
+            console.error(`[Game] Upgrade ${upgradeId} not found in ${type}`);
+            return false;
+        }
+
+        // Check availability and bank
+        const unlockedSet = type === 'stat' ? this.unlockedStats : this.unlockedSkills;
+        if (unlockedSet.has(upgradeId)) {
+            console.warn(`[Game] Upgrade ${upgradeId} already unlocked`);
+            return false;
+        }
+
+        if (this.bank >= upgrade.cost) {
+            this.bank -= upgrade.cost;
+            unlockedSet.add(upgradeId);
+            this.saveProgress();
+
+            console.log(`[Game] Purchased ${type} upgrade: ${upgradeId}. Remaining bank: ${this.bank}`);
+
+            // Refresh Player stats immediately
+            if (this.world && this.world.player) {
+                this.world.player.applySkills();
+            }
+            return true;
+        }
+
+        console.warn(`[Game] Insufficient funds for ${upgradeId}. Need ${upgrade.cost}, have ${this.bank}`);
+        return false;
+    }
+
+    saveProgress() {
+        if (!this.currentSlotId) return;
+
+        const data = {
+            metadata: {
+                name: `Run #${this.currentSlotId}`,
+                lastSaved: Date.now()
+            },
+            gameplay: {
+                bank: this.bank,
+                unlockedStats: Array.from(this.unlockedStats),
+                unlockedSkills: Array.from(this.unlockedSkills),
+                highScore: this.highScore,
+                level: this.level,
+                score: this.score
+            },
+            inventory: this.serializeInventory()
+        };
+
+        SaveManager.saveSlot(this.currentSlotId, data);
+    }
+
+    serializeInventory(persistentOnly = false) {
+        if (!this.world || !this.world.player) return null;
+        const p = this.world.player;
+
+        const serialize = (item) => {
+            if (!item) return null;
+            // For weapons, save the weapon type string
+            if (item.weaponType) return item.weaponType;
+            // For other items, we might need a name or type (Coins/HealthPacks usually aren't in backpack yet, but just in case)
+            if (item.name) return item.name;
+            return item.constructor.name;
+        };
+
+        if (persistentOnly) {
+            return {
+                backpack: p.inventory.map(serialize)
+            };
+        }
+
+        return {
+            backpack: p.inventory.map(serialize),
+            equipment: p.equipment.map(serialize),
+            weapons: p.weapons.map(serialize),
+            currentWeaponIndex: p.currentWeaponIndex || 0,
+            hp: p.hp,
+            maxHp: p.maxHp,
+            money: p.money
+        };
+    }
+
+    grantRandomSkill() {
+        const allSkills = Object.values(CONFIG.SKILLS);
+        const unowned = allSkills.filter(s => !this.unlockedSkills.has(s.id));
+        
+        if (unowned.length === 0) {
+            console.warn("All skills already unlocked!");
+            return;
+        }
+        
+        const skill = unowned[Math.floor(Math.random() * unowned.length)];
+        this.unlockedSkills.add(skill.id);
+        
+        // Re-apply skills to the player to reflect new bonuses
+        if (this.world.player) {
+            this.world.player.applySkills();
+        }
+        
+        // Save progress immediately
+        this.saveProgress();
+        
+        // Transition to feedback state
+        this.stateMachine.transition('SKILL_ACQUIRED', { skill: skill });
+    }
+
+    resize() {
+        // --- STEP 1: Strict Logical Resolution (16:9) ---
+        this.width = 1280;
+        this.height = 720;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+
+        // --- STEP 2: Window-Based Viewport Detection ---
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+        const portrait = winH > winW;
+        
+        let availableWidth = winW;
+        let availableHeight = winH;
+
+        // Handle the 55/45 Split on ALL Portrait viewports
+        // (Responsive to window, not device)
+        if (portrait) {
+            availableHeight = winH * 0.55; 
+        }
+
+        // --- STEP 3: Aspect Ratio Fitting (16:9) ---
+        const canvasAspect = 16 / 9;
+        const containerAspect = availableWidth / availableHeight;
+        
+        let displayWidth, displayHeight, displayTop, displayLeft;
+        
+        if (containerAspect > canvasAspect) {
+            // Screen is wider than 16:9 (Pillarbox on PC or Landscape)
+            displayHeight = availableHeight;
+            displayWidth = displayHeight * canvasAspect;
+            displayTop = 0;
+            displayLeft = (availableWidth - displayWidth) / 2;
+        } else {
+            // Screen is narrower than 16:9 (Letterbox - e.g. Phone Portrait)
+            // FORCE 100% WIDTH to avoid side gaps
+            displayWidth = availableWidth;
+            displayHeight = displayWidth / canvasAspect;
+            displayLeft = 0;
+            displayTop = (availableHeight - displayHeight) / 2;
+        }
+
+        // --- STEP 4: Apply Styles to Canvas & UI ---
+        const uiViewport = document.getElementById('ui-viewport');
+        
+        const styleCanvas = (el) => {
+            el.style.position = 'absolute';
+            el.style.width = `${Math.ceil(displayWidth)}px`;
+            el.style.height = `${Math.ceil(displayHeight)}px`;
+            el.style.top = `${Math.floor(displayTop)}px`;
+            el.style.left = `${Math.floor(displayLeft)}px`;
+        };
+
+        styleCanvas(this.canvas);
+        if (uiViewport) {
+            styleCanvas(uiViewport);
+            const uiScale = displayWidth / 1280;
+            uiViewport.style.setProperty('--ui-scale', uiScale);
+        }
+
+        // --- STEP 5: Camera Sync ---
+        if (this.camera) {
+            this.camera.width = this.width;
+            this.camera.height = this.height;
+        }
+
+        console.log(`[Resize] Win: ${winW}x${winH} | Mode: ${portrait ? 'PORT' : 'LAND'} | Scale: ${displayWidth}x${displayHeight}`);
+    }
+
+    start() {
+        if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
+        this.lastTime = performance.now();
+        this.animationFrameId = requestAnimationFrame(this.loop);
+    }
+
+    restart() {
+        // Delegate to FSM: GAME_OVER → LOADING (restart mode)
+        this.stateMachine.transition('LOADING', { mode: 'restart' });
+    }
+
+    gameOver() {
+        // Delegate to FSM: PLAYING → GAME_OVER
+        this.stateMachine.transition('GAME_OVER');
+    }
+
+    loop(timestamp) {
+        if (!this.lastTime) this.lastTime = timestamp;
+        let deltaTime = (timestamp - this.lastTime) / 1000;
+        this.lastTime = timestamp;
+
+        if (deltaTime > 0.2) deltaTime = 0.2;
+
+        this.accumulatedTime += deltaTime;
+
+        // Measure Update
+        const startUpdate = performance.now();
+        while (this.accumulatedTime > this.step) {
+            this.update(this.step);
+            this.accumulatedTime -= this.step;
+        }
+        const endUpdate = performance.now();
+
+        // Measure Render
+        const startRender = performance.now();
+        this.render();
+        const endRender = performance.now();
+
+
+
+        this.animationFrameId = requestAnimationFrame(this.loop);
+    }
+
+    update(dt) {
+        // Delegate update and input to the FSM
+        this.stateMachine.handleInput(this.input);
+        this.stateMachine.update(dt);
+
+        // Always clear one-shot keys at end of frame
+        this.input.update();
+    }
+
+    render() {
+        // Clear screen
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // If active state hijacks the render loop (like LoadingState)
+        if (this.stateMachine && this.stateMachine.currentState && typeof this.stateMachine.currentState.render === 'function') {
+            this.stateMachine.currentState.render(this, this.ctx);
+            return;
+        }
+
+        this.ctx.save();
+        this.ctx.imageSmoothingEnabled = false;
+        this.camera.apply(this.ctx);
+
+        if (this.world) {
+            this.world.render(this.ctx);
+        }
+
+        this.ctx.restore();
+    }
+}

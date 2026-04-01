@@ -78,8 +78,8 @@ export default class AttackComponent {
 
         for (let i = 0; i < count; i++) {
             const fireAngle = startAngle + (step * i);
-            const bullet = new Bullet(
-                this.entity.game,
+            const bullet = this.entity.game.world.bulletPool.get();
+            bullet.init(
                 this.entity.x + Math.cos(fireAngle) * 20,
                 this.entity.y + Math.sin(fireAngle) * 20,
                 Math.cos(fireAngle),

@@ -4,30 +4,80 @@
     box-sizing: border-box;
 }
 
+/* Force Mobile Controls to HIDE in Landscape */
+@media screen and (orientation: landscape) {
+    #mobile-controls-container {
+        display: none !important;
+    }
+}
+
+:root {
+    --safe-top: env(safe-area-inset-top, 20px);
+    --safe-left: env(safe-area-inset-left, 20px);
+    --safe-right: env(safe-area-inset-right, 20px);
+    --safe-bottom: env(safe-area-inset-bottom, 20px);
+
+    --hud-padding: 20px;
+    --ui-scale: 1;
+
+    /* Colors */
+    --c-bg: #1a1a1a;
+    --c-text: #ffffff;
+    --c-accent: #00ffff;
+    --c-gold: #FFD700;
+    --c-danger: #ff4444;
+    --c-success: #00ff00;
+    --c-panel-bg: rgba(0, 0, 0, 0.95);
+    --c-slot-bg: #222;
+    /* UI Scaling */
+    --ui-scale: 1;
+}
+
 body {
-    background-color: #1a1a1a;
-    color: #ffffff;
+    background-color: var(--c-bg);
+    color: var(--c-text);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
     /* Prevent scrolling */
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    width: 100svw !important;
+    height: 100svh !important; 
+}
+
+#main-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100% !important;
+    height: 100% !important;
+    background: #111;
+    overflow: hidden;
 }
 
 #game-container {
     position: relative;
-    width: 100%;
-    height: 100%;
+    flex: 1; /* Default: fill space */
+    width: 100% !important;
+    display: block; /* Use block for absolute canvas positioning */
+    overflow: hidden;
+    background: #000;
+}
+
+#mobile-controls-container {
+    flex: 0 0 45%; /* Explicitly define the split */
+    background: #2a2a2a;
+    border-top: 4px solid #444;
+    position: relative;
+    display: none; /* Hidden by default */
+    box-shadow: inset 0 10px 20px rgba(0,0,0,0.5);
 }
 
 canvas {
     display: block;
-    width: 100%;
-    height: 100%;
-    background-color: #2b2b2b;
-    /* Fallback/Clear color */
+    /* Size and position handled by Game.js resize() */
+    image-rendering: pixelated;
+    background-color: #000;
 }
 
 #ui-layer {
@@ -37,11 +87,17 @@ canvas {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    /* Let clicks pass through to canvas by default */
+    display: block; /* No flex centering on the root layer */
+}
+
+#ui-viewport {
+    position: absolute; /* Controlled by JS resize */
+    pointer-events: none;
+    overflow: hidden; /* Keep menus inside game area */
 }
 
 /* Enable pointer events for actual UI elements inside ui-layer */
-#ui-layer>* {
+#ui-viewport > * {
     pointer-events: auto;
 }
 
@@ -80,6 +136,8 @@ canvas {
     font-size: 24px;
     font-weight: bold;
     text-align: right;
+    transform: scale(var(--ui-scale));
+    transform-origin: top right;
 }
 
 .hidden {
@@ -97,12 +155,16 @@ canvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    z-index: 2000;
+    /* Ensure it's on top of everything, including touch controls */
 }
 
 #hud-left {
     display: flex;
     align-items: center;
     gap: 15px;
+    transform: scale(var(--ui-scale));
+    transform-origin: top left;
 }
 
 #exit-btn {
@@ -145,6 +207,8 @@ canvas {
     border-radius: 8px;
     text-align: center;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    transform: scale(var(--ui-scale));
+    transform-origin: center;
 }
 
 .modal-content h2 {
@@ -199,11 +263,27 @@ canvas {
 }
 
 /* Inventory Styles */
+#abilities-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(var(--ui-scale));
+    transform-origin: center;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #ff00ff;
+    padding: 20px;
+    text-align: center;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
 #inventory-screen {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(var(--ui-scale));
+    transform-origin: center;
     background: rgba(0, 0, 0, 0.95);
     border: 2px solid #fff;
     padding: 20px;
@@ -246,24 +326,28 @@ canvas {
 }
 
 /* Grids */
+/* Responsive Grids */
+.grid-4x2,
+.grid-3x1,
+.grid-2x1 {
+    display: grid;
+    grid-gap: 10px;
+    /* Auto-fit columns with a minimum width of 60px */
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+}
+
+/* Specific overrides for visual consistency */
 .grid-2x2 {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
     grid-gap: 10px;
+    /* Strictly force 2 columns for a perfect square */
+    grid-template-columns: repeat(2, 60px);
 }
 
+/* Specific overrides for visual consistency if needed, but auto-fit handles most cases */
 .grid-4x2 {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    grid-gap: 10px;
-}
-
-.grid-3x1 {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: 1fr;
-    grid-gap: 10px;
+    /* Force 4 columns on large screens, adapt on small */
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
 }
 
 .slot {
@@ -292,6 +376,8 @@ canvas {
     right: 20px;
     display: flex;
     gap: 10px;
+    transform: scale(var(--ui-scale));
+    transform-origin: bottom right;
 }
 
 #weapon-hud .slot {
@@ -326,7 +412,8 @@ canvas {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(var(--ui-scale));
+    transform-origin: center;
     background: rgba(0, 0, 0, 0.95);
     border: 2px solid #00ffff;
     /* Cyan border for distinction */
@@ -336,8 +423,8 @@ canvas {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 400px;
-    min-height: 300px;
+    min-width: 800px;
+    max-height: 600px;
 }
 
 #skills-screen h2 {
@@ -355,28 +442,65 @@ canvas {
 }
 
 #skills-list {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
     width: 100%;
-    max-height: 400px;
+    max-height: 500px;
     overflow-y: auto;
-    padding-right: 10px;
+    overflow-x: hidden;
+    padding: 10px 5px;
+    scroll-behavior: smooth;
 }
 
 .stat-category {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    width: 100%;
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 15px;
+    transition: all 0.3s ease;
+}
+
+.stat-category.collapsed {
+    padding: 10px 15px;
+    background: rgba(40, 40, 40, 0.4);
 }
 
 .stat-category h3 {
-    text-align: center;
+    text-align: left;
     color: #FFD700;
     margin-bottom: 10px;
     font-size: 18px;
     border-bottom: 2px solid #444;
-    padding-bottom: 5px;
+    padding-bottom: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.stat-category h3::after {
+    content: '▲';
+    font-size: 12px;
+    transition: transform 0.3s;
+}
+
+.stat-category.collapsed h3 {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.stat-category.collapsed h3::after {
+    transform: rotate(180deg);
+}
+
+.stat-category.collapsed .skill-item {
+    display: none;
 }
 
 .skill-item {
@@ -453,11 +577,11 @@ canvas {
 }
 
 #skills-list::-webkit-scrollbar-track {
-    background: #222;
+    background: #111;
 }
 
 #skills-list::-webkit-scrollbar-thumb {
-    background: #444;
+    background: #FFD700;
     border-radius: 4px;
 }
 
@@ -572,10 +696,44 @@ canvas {
     opacity: 1;
 }
 
-/* ============================================
-   MOBILE ADAPTATION (body.mobile class)
-   Applied once at startup by Platform.js
-   ============================================ */
+/* --- GameBoy Layout for Portrait --- */
+@media screen and (orientation: portrait) {
+    #main-wrapper {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #game-container {
+        flex: 0 0 55%; /* Top 55% for the screen */
+        background: #000;
+        padding: 0; /* Remove padding to keep canvas maximized */
+    }
+    
+    #mobile-controls-container {
+        display: block;
+        flex: 0 0 45%; /* Bottom 45% for controls */
+        background: #333; /* Darker GB body */
+        background-image: radial-gradient(#444 1px, transparent 1px);
+        background-size: 20px 20px; /* Subtle texture */
+        box-shadow: inset 0 10px 20px rgba(0,0,0,0.5);
+    }
+
+    /* Keep HUD scale consistent with logic */
+    #hud {
+        padding: 10px;
+    }
+}
+
+/* Landscape Mode Restore */
+@media screen and (orientation: landscape) {
+    body.mobile #game-container {
+        flex: 1;
+        height: 100%;
+    }
+    body.mobile #mobile-controls-container {
+        display: none;
+    }
+}
 
 /* Prevent browser gestures on game canvas */
 canvas {
@@ -669,9 +827,14 @@ body.mobile .skill-desc {
     font-size: 12px;
 }
 
+/* Larger Touch Targets for Buy Buttons */
 body.mobile .buy-btn {
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 12px 24px;
+    /* Increased from 6px 12px */
+    font-size: 14px;
+    min-height: 44px;
+    /* standard touch target */
+    min-width: 80px;
 }
 
 /* --- Abilities Screen --- */
@@ -715,14 +878,24 @@ body.mobile .save-slot-info p {
     font-size: 12px;
 }
 
+/* Delete Button Touch Target */
+body.mobile .delete-slot-btn {
+    padding: 10px 15px;
+    font-size: 14px;
+    min-height: 44px;
+}
+
 /* --- Game Over Screen --- */
 body.mobile #game-over-screen h1 {
     font-size: 32px;
 }
 
 body.mobile #restart-btn {
-    font-size: 18px;
-    padding: 8px 16px;
+    font-size: 20px;
+    padding: 15px 40px;
+    /* Much larger */
+    min-height: 50px;
+    margin-top: 30px;
 }
 
 /* --- Modal --- */
@@ -737,16 +910,180 @@ body.mobile .modal-content h2 {
 }
 
 body.mobile .modal-buttons button {
-    padding: 8px 20px;
+    padding: 15px 30px;
+    /* Larger targets */
     font-size: 16px;
+    min-height: 44px;
 }
 
 /* --- Grids (portrait-friendly) --- */
-body.mobile .grid-4x2 {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: auto;
+/* ============================================
+   TOUCH CONTROLS (Declarative Styling)
+   ============================================ */
+
+#touch-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
 }
 
-body.mobile .grid-2x2 {
-    grid-template-columns: repeat(2, 1fr);
+/* Joysticks */
+.touch-zone {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    pointer-events: auto;
+    touch-action: none;
+    bottom: 60px;
+}
+
+.touch-zone.left {
+    left: 80px;
+}
+
+.touch-zone.right {
+    right: 80px;
+}
+
+.touch-puck {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Action Buttons */
+.touch-btn {
+    position: absolute;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+    pointer-events: auto;
+    user-select: none;
+    touch-action: none;
+}
+
+.touch-btn.dash {
+    bottom: 220px;
+    right: 60px;
+    background: rgba(0, 255, 255, 0.5);
+    width: 70px;
+    height: 70px;
+}
+
+.touch-btn.switch-weapon {
+    bottom: 220px;
+    right: 150px;
+    background: rgba(255, 255, 0, 0.5);
+    width: 60px;
+    height: 60px;
+    font-size: 30px;
+}
+
+.touch-btn.interact {
+    bottom: 120px;
+    right: 180px;
+    background: rgba(0, 255, 0, 0.5);
+    width: 65px;
+    height: 65px;
+    font-size: 24px;
+}
+
+/* Menu Buttons (Top Left) */
+.touch-menu-btn {
+    position: absolute;
+    top: 100px;
+    width: 60px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: sans-serif;
+    font-weight: bold;
+    font-size: 12px;
+    pointer-events: auto;
+    user-select: none;
+    touch-action: none;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.touch-menu-btn.inv {
+    left: var(--safe-left);
+}
+
+.touch-menu-btn.stats {
+    left: calc(var(--safe-left) + 70px);
+}
+
+.touch-menu-btn.skills {
+    left: calc(var(--safe-left) + 155px);
+}
+
+/* Mobile Overrides (Variables) */
+body.mobile {
+    --ui-scale: 1.2;
+    --hud-padding: 10px;
+}
+
+/* Responsive Scaling for Small Screens */
+@media (max-width: 480px),
+(max-height: 480px) {
+    :root {
+        --ui-scale: 0.8;
+    }
+
+    .touch-zone {
+        width: 80px;
+        height: 80px;
+        bottom: 40px;
+    }
+
+    .touch-zone.left {
+        left: 50px;
+    }
+
+    .touch-zone.right {
+        right: 50px;
+    }
+
+    .touch-btn.dash {
+        bottom: 160px;
+        right: 40px;
+        width: 60px;
+        height: 60px;
+    }
+
+    .touch-btn.switch-weapon {
+        bottom: 160px;
+        right: 110px;
+        width: 50px;
+        height: 50px;
+    }
+
+    .touch-btn.interact {
+        bottom: 90px;
+        right: 130px;
+        width: 50px;
+        height: 50px;
+    }
 }

@@ -1,42 +1,48 @@
-import Entity from './Entity.js';
+import Item from './Item.js';
 import { CONFIG } from '../Config.js';
 
-export default class HealthPack extends Entity {
+export default class HealthPack extends Item {
     constructor(game, x, y) {
-        super(game, x, y);
-        this.type = CONFIG.COLLISION_TYPES.ITEM;
+        // Green glow
+        super(game, x, y, {
+            glow: false, // Explicitly disable glow
+            glowColor: '#00ff00',
+            glowAmount: 15,
+            scale: 1.0
+        });
+
         this.radius = 10;
         this.healAmount = 1;
-        this.floatOffset = 0;
+        this.color = '#00ff00'; // Fallback
     }
 
-    update(dt) {
-        // Simple floating animation
-        this.floatOffset += dt * 5;
-    }
-
-    onCollision(other) {
-        if (other === this.game.world.player && !this.markedForDeletion) {
-            if (other.hp < other.maxHp) {
-                other.hp = Math.min(other.maxHp, other.hp + this.healAmount);
-                this.markedForDeletion = true;
-                this.game.world.spawnParticles(this.x, this.y, '#00ff00', 10);
-            }
+    onCollect(player) {
+        if (player.hp < player.maxHp) {
+            player.hp = Math.min(player.maxHp, player.hp + this.healAmount);
+            super.onCollect(player); // Spawns particles and deletes
         }
     }
 
     render(ctx) {
-        const drawY = this.y + Math.sin(this.floatOffset) * 3;
+        const v = this.visual;
+        let drawY = this.y + v.offsetY;
+        if (v.bobbing) {
+            drawY += Math.sin(performance.now() * 0.001 * v.bobSpeed) * v.bobAmount;
+        }
+
+        ctx.save();
+        ctx.translate(this.x, drawY);
+
+        if (v.glow) {
+            ctx.shadowBlur = v.glowAmount;
+            ctx.shadowColor = v.glowColor;
+        }
 
         // Draw Cross
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(this.x - 3, drawY - 8, 6, 16);
-        ctx.fillRect(this.x - 8, drawY - 3, 16, 6);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(-3, -8, 6, 16);
+        ctx.fillRect(-8, -3, 16, 6);
 
-        // Glow
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#00ff00';
-        // ctx.strokeRect(this.x - 10, drawY - 10, 20, 20);
-        ctx.shadowBlur = 0;
+        ctx.restore();
     }
 }

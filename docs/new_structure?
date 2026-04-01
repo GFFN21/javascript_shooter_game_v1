@@ -1,0 +1,67 @@
+javascript_shooter_game_v1/
+├── index.html
+├── style.css
+├── README.md
+├── DOCUMENTATION.md
+│
+├── assets/                      ← All images & data
+│   ├── sprites/
+│   │   ├── player_spritesheet.png
+│   │   ├── player_spritesheet_v2.png
+│   │   ├── trap_door_sheet.png
+│   │   └── mayan_portal.png
+│   ├── tilesets/
+│   │   ├── mayan_tileset.png
+│   │   ├── mayan_altar.png
+│   │   ├── mayan_altar_black_bg.png
+│   │   └── tile_coordinates.json
+│   └── raw/                     ← Source images (not used at runtime)
+│       ├── player_spritesheet_raw.png
+│       └── mayan_portal_raw.png
+│
+├── tools/                       ← Python scripts & debug utilities
+│   ├── process_altar.py
+│   ├── process_portal.py
+│   ├── process_player_sprites.py
+│   ├── process_new_sprites.py
+│   ├── process_transparency.py
+│   ├── refine_player_sprites.py
+│   └── debug_tiles.html
+│
+├── src/
+│   ├── main.js                  ← Entry point
+│   ├── Platform.js
+│   ├── Config.js
+│   │
+│   ├── core/                    ← Engine backbone
+│   │   ├── Game.js
+│   │   ├── Camera.js
+│   │   ├── World.js
+│   │   ├── Map.js
+│   │   └── Input.js
+│   │
+│   ├── entities/                ← (unchanged)
+│   │   ├── Entity.js
+│   │   ├── Player.js
+│   │   ├── Bullet.js
+│   │   ├── Enemy.js
+│   │   ├── ... (all enemy types)
+│   │   └── WeaponItem.js
+│   │
+│   ├── components/              ← (unchanged)
+│   │   ├── AttackComponent.js
+│   │   └── MovementComponent.js
+│   │
+│   ├── ui/                      ← (unchanged)
+│   │   ├── UIManager.js
+│   │   ├── TouchControls.js
+│   │   └── DebugPanel.js
+│   │
+│   └── utils/                   ← (unchanged)
+│       ├── SaveManager.js
+│       ├── SpatialHash.js
+│       └── Pathfinder.js
+│
+└── reference/                   ← Loose resource folders
+    ├── 2D explorer character sprite copy/
+    └── dungeon_ v1.0 copy/

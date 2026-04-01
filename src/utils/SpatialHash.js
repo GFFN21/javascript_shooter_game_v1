@@ -15,10 +15,12 @@ export default class SpatialHash {
     }
 
     insert(entity) {
-        const startX = Math.floor((entity.x - entity.radius) / this.cellSize);
-        const endX = Math.floor((entity.x + entity.radius) / this.cellSize);
-        const startY = Math.floor((entity.y - entity.radius) / this.cellSize);
-        const endY = Math.floor((entity.y + entity.radius) / this.cellSize);
+        const w = (entity.width || 30) / 2;
+        const h = (entity.height || 30) / 2;
+        const startX = Math.floor((entity.x - w) / this.cellSize);
+        const endX = Math.floor((entity.x + w) / this.cellSize);
+        const startY = Math.floor((entity.y - h) / this.cellSize);
+        const endY = Math.floor((entity.y + h) / this.cellSize);
 
         for (let y = startY; y <= endY; y++) {
             for (let x = startX; x <= endX; x++) {
@@ -33,10 +35,12 @@ export default class SpatialHash {
 
     query(entity) {
         const candidates = new Set();
-        const startX = Math.floor((entity.x - entity.radius) / this.cellSize);
-        const endX = Math.floor((entity.x + entity.radius) / this.cellSize);
-        const startY = Math.floor((entity.y - entity.radius) / this.cellSize);
-        const endY = Math.floor((entity.y + entity.radius) / this.cellSize);
+        const w = (entity.width || 30) / 2;
+        const h = (entity.height || 30) / 2;
+        const startX = Math.floor((entity.x - w) / this.cellSize);
+        const endX = Math.floor((entity.x + w) / this.cellSize);
+        const startY = Math.floor((entity.y - h) / this.cellSize);
+        const endY = Math.floor((entity.y + h) / this.cellSize);
 
         for (let y = startY; y <= endY; y++) {
             for (let x = startX; x <= endX; x++) {
