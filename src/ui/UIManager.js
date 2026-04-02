@@ -82,6 +82,16 @@ export default class UIManager {
         this.game.isPaused = false;
     }
 
+    showHUD() {
+        const hud = document.getElementById('hud');
+        if (hud) hud.style.visibility = 'visible';
+    }
+
+    hideHUD() {
+        const hud = document.getElementById('hud');
+        if (hud) hud.style.visibility = 'hidden';
+    }
+
     renderSaveSlots() {
         // Note: We need SaveManager here. Since this is an ESM project, 
         // we should probably import it at the top.

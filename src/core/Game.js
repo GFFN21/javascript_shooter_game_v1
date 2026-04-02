@@ -4,9 +4,11 @@ import World from './World.js';
 import { CONFIG } from '../Config.js';
 import UIManager from '../ui/UIManager.js';
 import SaveManager from '../utils/SaveManager.js';
+import { Platform } from '../Platform.js';
 
 import GameStateMachine from './GameStateMachine.js';
 import BootState from '../states/BootState.js';
+import PlatformSelectState from '../states/PlatformSelectState.js';
 import SaveSelectState from '../states/SaveSelectState.js';
 import LoadingState from '../states/LoadingState.js';
 import PlayingState from '../states/PlayingState.js';
@@ -42,9 +44,8 @@ export default class Game {
 
         this.input = new Input(this);
         this.camera = new Camera(this, 0, 0);
-        this.world = new World(this);
+        this.world = null;  // Built by LoadingState, not here
         this.ui = new UIManager(this);
-
 
         // Bind loop
         this.loop = this.loop.bind(this);
@@ -53,6 +54,7 @@ export default class Game {
         // Initialize State Machine
         this.stateMachine = new GameStateMachine(this);
         this.stateMachine.register(new BootState());
+        this.stateMachine.register(new PlatformSelectState());
         this.stateMachine.register(new SaveSelectState());
         this.stateMachine.register(new LoadingState());
         this.stateMachine.register(new PlayingState());
@@ -63,7 +65,7 @@ export default class Game {
         this.stateMachine.register(new ReloadState());
         this.stateMachine.register(new SkillAcquiredState());
 
-        // Start in BOOT state (will auto-transition to SAVE_SELECT)
+        // Start in BOOT state (routes to PLATFORM_SELECT or SAVE_SELECT)
         this.stateMachine.transition('BOOT');
     }
 
@@ -226,8 +228,8 @@ export default class Game {
         let availableHeight = winH;
 
         // Handle the 55/45 Split on ALL Portrait viewports
-        // (Responsive to window, not device)
-        if (portrait) {
+        // Only if mobile layout is active
+        if (portrait && Platform.isMobile) {
             availableHeight = winH * 0.55; 
         }
 

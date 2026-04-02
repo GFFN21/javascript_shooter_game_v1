@@ -697,19 +697,20 @@ canvas {
 }
 
 /* --- GameBoy Layout for Portrait --- */
+/* --- GameBoy Layout for Portrait --- */
 @media screen and (orientation: portrait) {
-    #main-wrapper {
+    body.mobile #main-wrapper {
         display: flex;
         flex-direction: column;
     }
     
-    #game-container {
+    body.mobile #game-container {
         flex: 0 0 55%; /* Top 55% for the screen */
         background: #000;
         padding: 0; /* Remove padding to keep canvas maximized */
     }
     
-    #mobile-controls-container {
+    body.mobile #mobile-controls-container {
         display: block;
         flex: 0 0 45%; /* Bottom 45% for controls */
         background: #333; /* Darker GB body */
@@ -719,7 +720,7 @@ canvas {
     }
 
     /* Keep HUD scale consistent with logic */
-    #hud {
+    body.mobile #hud {
         padding: 10px;
     }
 }

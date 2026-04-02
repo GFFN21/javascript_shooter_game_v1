@@ -5,40 +5,63 @@ export default class Input {
     constructor(game) {
         this.game = game;
         this.keys = new Set();
-        this.keysPressed = new Set(); // For one-shot input
+        this.keysPressed = new Set();
         this.mouse = { x: 0, y: 0, down: false };
-
-        // Only create touch controls on mobile
         this.touchControls = null;
+        // Input is not bound here — call reinitialise() after Platform is set.
+    }
+
+    /**
+     * Called by PlatformSelectState after the user has chosen a platform,
+     * and at startup if a preference was already saved.
+     * Safe to call multiple times — cleans up before re-binding.
+     */
+    reinitialise() {
+        // Tear down any existing TouchControls DOM
+        if (this.touchControls) {
+            const existing = document.getElementById('touch-controls');
+            if (existing) existing.remove();
+            this.touchControls = null;
+        }
+
+        // Remove existing PC listeners if they exist
+        if (this._keydown) {
+            window.removeEventListener('keydown', this._keydown);
+            window.removeEventListener('keyup', this._keyup);
+            window.removeEventListener('mousemove', this._mousemove);
+            window.removeEventListener('mousedown', this._mousedown);
+            window.removeEventListener('mouseup', this._mouseup);
+        }
 
         if (Platform.isMobile) {
-            this.touchControls = new TouchControls(game);
+            this.touchControls = new TouchControls(this.game);
         } else {
             // PC-only: bind keyboard and mouse
-            window.addEventListener('keydown', e => {
-                if (e.repeat) return; // Prevent auto-repeat hold from rapid-firing toggles
-                if (e.code === 'F3') e.preventDefault(); // Prevent browser search
-                
-                // Directly toggle the global debug state immediately without waiting for game loop sync
+            this._keydown = (e) => {
+                if (e.repeat) return;
+                if (e.code === 'F3') e.preventDefault();
                 if (e.code === 'F3' || e.code === 'KeyH') {
                     this.game.showDebugHitboxes = !this.game.showDebugHitboxes;
                 }
-
                 this.keys.add(e.code);
                 this.keysPressed.add(e.code);
-            });
-            window.addEventListener('keyup', e => this.keys.delete(e.code));
-
-            window.addEventListener('mousemove', e => {
-                const rect = this.game.canvas.getBoundingClientRect();
-                const scaleX = this.game.canvas.width / rect.width;
+            };
+            this._keyup = (e) => this.keys.delete(e.code);
+            this._mousemove = (e) => {
+                const rect   = this.game.canvas.getBoundingClientRect();
+                const scaleX = this.game.canvas.width  / rect.width;
                 const scaleY = this.game.canvas.height / rect.height;
                 this.mouse.x = (e.clientX - rect.left) * scaleX;
-                this.mouse.y = (e.clientY - rect.top) * scaleY;
-            });
+                this.mouse.y = (e.clientY - rect.top)  * scaleY;
+            };
+            this._mousedown = () => this.mouse.down = true;
+            this._mouseup   = () => this.mouse.down = false;
 
-            window.addEventListener('mousedown', () => this.mouse.down = true);
-            window.addEventListener('mouseup', () => this.mouse.down = false);
+            window.addEventListener('keydown',   this._keydown);
+            window.addEventListener('keyup',     this._keyup);
+            window.addEventListener('mousemove', this._mousemove);
+            window.addEventListener('mousedown', this._mousedown);
+            window.addEventListener('mouseup',   this._mouseup);
         }
     }
 

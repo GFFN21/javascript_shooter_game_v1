@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roguelike-shooter-v2-cache';
+const CACHE_NAME = 'roguelike-shooter-v3-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
   './src/main.js',
   './src/Config.js',
   './src/Platform.js',
+
   './src/core/Game.js',
   './src/core/GameStateMachine.js',
   './src/core/Input.js',

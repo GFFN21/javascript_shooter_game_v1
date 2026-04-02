@@ -8,7 +8,8 @@ export default class GameStateMachine {
 
         // Valid transitions map – prevents invalid state jumps
         this.validTransitions = {
-            'BOOT': ['SAVE_SELECT'],
+            'BOOT': ['SAVE_SELECT', 'PLATFORM_SELECT'],
+            'PLATFORM_SELECT': ['BOOT'],
             'SAVE_SELECT': ['LOADING'],
             'LOADING': ['PLAYING'],
             'PLAYING': ['PAUSED_INVENTORY', 'PAUSED_SKILLS', 'PAUSED_ABILITIES', 'GAME_OVER', 'LEVEL_TRANSITION', 'SAVE_SELECT', 'LOADING', 'RELOAD', 'SKILL_ACQUIRED'],
