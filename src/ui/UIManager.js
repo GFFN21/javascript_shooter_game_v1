@@ -1,5 +1,7 @@
 import { CONFIG } from '../Config.js';
 import SaveManager from '../utils/SaveManager.js';
+import { Platform } from '../Platform.js';
+
 export default class UIManager {
     constructor(game) {
         this.game = game;
@@ -25,25 +27,24 @@ export default class UIManager {
         this.inventoryScreen = document.getElementById('inventory-screen');
         this.skillsScreen = document.getElementById('skills-screen');
         this.abilitiesScreen = document.getElementById('abilities-screen');
-        this.saveScreen = document.getElementById('save-screen'); // New
-        this.saveSlotsContainer = document.getElementById('save-slots-container'); // New
+        this.saveScreen = document.getElementById('save-screen');
+        this.saveSlotsContainer = document.getElementById('save-slots-container');
         this.inventoryGrid = document.getElementById('inventory-grid');
         this.equipmentGrid = document.getElementById('equipment-grid');
         this.weaponsGrid = document.getElementById('weapons-grid');
 
-        // Inventory Click Handlers (Keep for click-to-equip/unequip if desired, or replace with DnD?)
-        // Let's keep clicks as fallback or complementary.
         this.bindButton(this.inventoryGrid, (e) => this.handleInventoryClick(e, 'backpack'));
         this.bindButton(this.weaponsGrid, (e) => this.handleInventoryClick(e, 'weapon'));
 
         this.restartBtn = document.getElementById('restart-btn');
         this.bindButton(this.restartBtn, () => this.game.restart());
 
-        // Exit Button & Confirmation
+        // Exit & Reset Platform
         this.exitBtn = document.getElementById('exit-btn');
         this.exitConfirmModal = document.getElementById('exit-confirm-modal');
         this.confirmExitBtn = document.getElementById('confirm-exit-btn');
         this.cancelExitBtn = document.getElementById('cancel-exit-btn');
+        this.resetPlatformBtn = document.getElementById('reset-platform-btn');
 
         this.bindButton(this.exitBtn, () => this.exitConfirmModal.classList.remove('hidden'));
         this.bindButton(this.confirmExitBtn, () => {
@@ -53,11 +54,19 @@ export default class UIManager {
         });
         this.bindButton(this.cancelExitBtn, () => this.exitConfirmModal.classList.add('hidden'));
 
+        if (this.resetPlatformBtn) {
+            this.bindButton(this.resetPlatformBtn, () => {
+                Platform.reset();
+                window.location.reload();
+            });
+        }
+
         this.lastHp = -1;
 
         // Drag & Drop State
-        this.draggedSource = null; // 'backpack' or 'weapon'
+        this.draggedSource = null;
         this.draggedIndex = -1;
+
         this.hoveredSlot = null; // { source: '...', index: ... }
 
         // UI State Cache (Prevents 60Hz DOM Thrashing)

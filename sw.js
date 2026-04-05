@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roguelike-shooter-v3-cache';
+const CACHE_NAME = 'roguelike-shooter-v4-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -22,6 +22,7 @@ const ASSETS_TO_CACHE = [
   // States
   './src/states/State.js',
   './src/states/BootState.js',
+  './src/states/PlatformSelectState.js',
   './src/states/LoadingState.js',
   './src/states/PlayingState.js',
   './src/states/GameOverState.js',
@@ -38,7 +39,7 @@ const ASSETS_TO_CACHE = [
   './src/utils/SpatialHash.js',
   './src/utils/Pathfinder.js',
   
-  // Essential Entities (Add more if needed, or rely on dynamic cache)
+  // Essential Entities
   './src/entities/Entity.js',
   './src/entities/Player.js',
   './src/entities/Enemy.js',
@@ -54,7 +55,6 @@ const ASSETS_TO_CACHE = [
   './assets/sprites/player_spritesheet_v2.png'
 ];
 
-// Install Event: Pre-cache items
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -66,7 +66,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate Event: Cleanup old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -83,32 +82,28 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event: Cache-First strategy
+// Fetch Event: Stale-While-Revalidate strategy
 self.addEventListener('fetch', (event) => {
+  // We don't want to cache browser-native extensions
+  if (event.request.url.startsWith('chrome-extension') || event.request.url.includes('extension')) return;
+
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-
-        // Cache miss - perform a real network request
-        return fetch(event.request).then((networkResponse) => {
-          // Check if we should cache this new request (only same-origin for now)
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
-          }
-
-          // Clone the response to store in cache
+    caches.match(event.request).then((cachedResponse) => {
+      // 1. Kick off the network request regardless to update the cache in the background
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(err => {
+        console.log('[Service Worker] Fetch failed (offline), relying purely on cache.', err);
+      });
 
-          return networkResponse;
-        });
-      })
+      // 2. Return the cached response IMMEDIATELY if we have it, otherwise wait for network
+      return cachedResponse || fetchPromise;
+    })
   );
 });
